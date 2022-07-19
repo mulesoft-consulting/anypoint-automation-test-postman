@@ -1,0 +1,5123 @@
+{
+	"info": {
+		"_postman_id": "abb9c449-45e0-471e-b756-9ab567be4964",
+		"name": "CAT Test",
+		"description": "This is a Postman collection intended to check URIs, inputs and outputs of Anypoint APIs that the Terraform provider is based on. For documentation purposes, check other CAT Postman collections.\n\nThe following collection variables are required for this collection to run:\n\n*   anypointRootOrganizationId - root anypoint platform organization ID;\n*   anypointRootOrganizationOwnerId - the user id to own the BGs created during the tests\n*   anypointUsername\n*   anypointPassword\n*   url\n    \n\nThe first test to run is '/CAT Test/Tests setup/User credentials login'. Widely used functions are declared in this first test \"Pre-request script\", check them out.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "6651293"
+	},
+	"item": [
+		{
+			"name": "Tests setup",
+			"item": [
+				{
+					"name": "User credentials login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+									"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+									"",
+									"var data = pm.response.json();",
+									"",
+									"tests[\"Response has an access token\"] = data.access_token !== undefined;",
+									"",
+									"environment.anypointAccessToken = data.access_token;",
+									"",
+									"if( environment.anypointAccessToken !== undefined ) {",
+									"    console.info( \"Login successful, access token saved\" );",
+									"    ",
+									"    eval( globals.next )( \"Refresh XSRF token\" );",
+									"} else {",
+									"    postman.setNextRequest( null );",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"console.info( \"Starting user credentials login request\" );",
+									"",
+									"// We have to clean XSRF and CSRF cookies before the login",
+									"const url = pm.collectionVariables.get( \"url\" );",
+									"",
+									"const cookiesJar = pm.cookies.jar();",
+									"",
+									"// Cleaning all cookies for the specified Anypoint URL",
+									"cookiesJar.clear( url, function (error) {",
+									"  if( error ) {",
+									"      console.error( \"Error clearing Anypoint cookies using URL [\" + url + \"]\" );",
+									"  } else {",
+									"      console.log( \"Anypoint cookies cleared for [\" + url + \"] before logging in\" );",
+									"  }",
+									"});",
+									"",
+									"",
+									"// Script to save CSRF token and set next test to be executed",
+									"postman.setGlobalVariable( \"next\", ( nextRequestName ) => {",
+									"    // We have to save the XSRF-TOKEN cookie to set X-XSRF-TOKEN in the next API call",
+									"    const cookiesJar = pm.cookies.jar();",
+									"",
+									"    cookiesJar.get( pm.request.url, \"XSRF-TOKEN\", function (error, cookie) {",
+									"        if( cookie === null ) {",
+									"            console.error( \"Error reading XSRF-TOKEN cookie for URL [\" + pm.request.url + \"]\" );",
+									"",
+									"            postman.setNextRequest( null );",
+									"        } else {",
+									"            pm.environment.set( \"xsrfToken\", cookie );",
+									"",
+									"            console.debug( \"XSRF-TOKEN saved for next API call [\" + cookie + \"]\" );",
+									"",
+									"            postman.setNextRequest( nextRequestName );",
+									"        }",
+									"    });",
+									"});",
+									"",
+									"postman.setGlobalVariable( \"createBasicTests\", () => {",
+									"    tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+									"    tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+									"",
+									"    var jsonBody = pm.response.json();",
+									"",
+									"    // Reading and saving created environment ID",
+									"    tests[\"Response has an ID\"] = jsonBody.id !== undefined;",
+									"",
+									"    return jsonBody;",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"{{anypointUsername}}\",\n  \"password\": \"{{anypointPassword}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/accounts/login",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"accounts",
+								"login"
+							]
+						},
+						"description": "This is the first test in the collection run.\n\nThe following collection variables are required at this point:\n\n*   anypointRootOrganizationId\n*   anypointRootOrganizationOwnerId\n*   anypointUsername\n*   anypointPassword\n*   url\n    \n\nWidely used functions are declared in this test \"Pre-request script\", check them out."
+					},
+					"response": []
+				},
+				{
+					"name": "Refresh XSRF token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+									"",
+									"eval( globals.next )( \"Create organization\" );"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"console.info(\"Loading root organization owner from org [\" + pm.variables.get(\"anypointRootOrganizationId\") + \"]\" );"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-XSRF-TOKEN",
+								"value": "{{xsrfToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/accounts/api/organizations/:orgid",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"accounts",
+								"api",
+								"organizations",
+								":orgid"
+							],
+							"variable": [
+								{
+									"key": "orgid",
+									"value": "{{anypointRootOrganizationId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Organizations/Business groups",
+			"item": [
+				{
+					"name": "Members",
+					"item": [
+						{
+							"name": "List organization members",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"//Validating response schema",
+											"const bgMembersSchema = pm.environment.get( \"bgMembersSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( bgMembersSchema );",
+											"",
+											"console.info( \"Organizations/Business groups members tests finished\" );",
+											"",
+											"eval( globals.next )( \"Create environment\" );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting Organizations/Business groups members tests\" );",
+											"",
+											"const bgMembersSchema = {",
+											"    type: \"object\",",
+											"    required: [ \"data\",\"total\" ],",
+											"    properties: {",
+											"        total: { type: \"integer\" },",
+											"        data: {",
+											"            type: \"array\",",
+											"            items: {",
+											"                type: \"object\",",
+											"                required: [ \"id\", \"firstName\", \"lastName\", \"email\", \"organizationId\", \"enabled\", \"idprovider_id\", \"createdAt\", \"updatedAt\", \"lastLogin\", \"mfaVerifiersConfigured\", \"mfaVerificationExcluded\", \"isFederated\", \"username\", \"type\" ],",
+											"                properties: {",
+											"                    id: { type: \"string\" },",
+											"                    firstName: { type: \"string\" },",
+											"                    lastName: { type: \"string\" },",
+											"                    email: { type: \"string\" },",
+											"                    organizationId: { type: \"string\" },",
+											"                    enabled: { type: \"boolean\" },",
+											"                    idprovider_id: { type: \"string\" },",
+											"                    createdAt: { type: \"string\" },",
+											"                    updatedAt: { type: \"string\" },",
+											"                    lastLogin: { type: \"string\" },",
+											"                    mfaVerifiersConfigured: { type: \"string\" },",
+											"                    mfaVerificationExcluded: { type: \"boolean\" },",
+											"                    isFederated: { type: \"boolean\" },",
+											"                    username: { type: \"string\" },",
+											"                    type: { type: \"string\" }",
+											"                }",
+											"            }",
+											"        }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"bgMembersSchema\", bgMembersSchema );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disabledSystemHeaders": {}
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/members",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"members"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "CRUD",
+					"item": [
+						{
+							"name": "Create organization",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"var jsonBody = eval( globals.createBasicTests )();",
+											"",
+											"pm.environment.set( \"createdBGId\", jsonBody.id );",
+											"",
+											"//Validating response schema",
+											"const bgSchema = pm.environment.get( \"bgSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( bgSchema );",
+											"",
+											"eval( globals.next )( \"Replace organization\" );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting Organizations/Business groups CRUD tests\" );",
+											"",
+											"var randomId = pm.variables.replaceIn(\"{{$guid}}\");",
+											"",
+											"pm.environment.set( \"bgRandomName\", \"test-business-group-\" + randomId );",
+											"",
+											"// TODO - check \"domain\", \"mfaRequired\" schema spec issue",
+											"",
+											"const bgSchema = {",
+											"    type: \"object\",",
+											"    properties: {",
+											"        // components/schemas/BGCore spec properties",
+											"        clientId: { type: \"string\" },",
+											"        createdAt: { type: \"string\" },",
+											"        entitlements: {",
+											"            type: \"object\",",
+											"            properties: {",
+											"                angGovernance: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"level\" ],",
+											"                    properties: {",
+											"                        level: { type: \"integer\", default: 0 }",
+											"                    }",
+											"                },",
+											"                anypointSecurityEdgePolicies: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                anypointSecurityTokenization: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                apiCommunityManager: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                apiMonitoring: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"schedules\" ],",
+											"                    properties: {",
+											"                        schedules: { type: \"integer\", default: 0 }",
+											"                    }",
+											"                },",
+											"                apiQuery: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false },",
+											"                        productSKU: { type: \"integer\", default: 0 }",
+											"                    }",
+											"                },",
+											"                apiQueryC360: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                apis: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                appViz: { type: \"boolean\", default: false },",
+											"                armAlerts: { type: \"boolean\", default: false },",
+											"                autoscaling: { type: \"boolean\", default: false },",
+											"                cam: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                createEnvironments: { type: \"boolean\", default: false },",
+											"                createSubOrgs: { type: \"boolean\", default: false },",
+											"                crowd: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"environments\", \"hideApiManagerDesigner\", \"hideFormerApiPlatform\" ],",
+											"                    properties: {",
+											"                        environments: { type: \"boolean\", default: false },",
+											"                        hideApiManagerDesigner: { type: \"boolean\", default: false },",
+											"                        hideFormerApiPlatform: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                crowdSelfServiceMigration: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                designCenter: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"api\", \"mozart\" ],",
+											"                    properties: {",
+											"                        api: { type: \"boolean\", default: false },",
+											"                        mozart: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                exchange2: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                externalIdentity: { type: \"boolean\", default: false },",
+											"                gateways: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"assigned\" ],",
+											"                    properties: {",
+											"                        assigned: { type: \"integer\", default: 0 }",
+											"                    }",
+											"                },",
+											"                globalDeployment: { type: \"boolean\", default: false },",
+											"                hybrid: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                hybridAutoDiscoverProperties: { type: \"boolean\", default: false },",
+											"                hybridInsight: { type: \"boolean\", default: false },",
+											"                kpiDashboard: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"            }",
+											"        },",
+											"        environments: { ",
+											"            type: \"array\",",
+											"            items: {",
+											"                default: {},",
+											"                required: [\"clientId\",\"id\",\"isProduction\",\"name\",\"organizationId\",\"type\"],",
+											"                properties: {",
+											"                    clientId: { type: \"string\" },",
+											"                    id: { type: \"string\" },",
+											"                    isProduction: { type: \"boolean\" },",
+											"                    name: { type: \"string\" },",
+											"                    organizationId: { type: \"string\" },",
+											"                    type: { type: \"string\" }",
+											"                }",
+											"            }",
+											"        },",
+											"        id: { type: \"string\", default: '' },",
+											"        idprovider_id: { type: \"string\", default: '' },",
+											"        isAutomaticAdminPromotionExempt: { type: \"boolean\", default: false },",
+											"        isFederated: { type: \"boolean\", default: false },",
+											"        isMaster: { type: \"boolean\", default: false },",
+											"        // mfaRequired: { type: \"boolean\", default: false },",
+											"        name: { type: \"string\", default: '' },",
+											"        ownerId: { type: \"string\", default: '' },",
+											"        parentOrganizationIds: { type: \"array\", items: { type: \"string\" } },",
+											"        properties: { type: \"object\" },",
+											"        subOrganizationIds: { type: \"array\", items: { type: \"string\" } },",
+											"        tenantOrganizationIds: { type: \"array\", items: { type: \"string\" } },",
+											"        updatedAt: { type: \"string\" },",
+											"        owner: {",
+											"            type: \"object\",",
+											"            properties: {",
+											"                createdAt: { type: \"string\", default: '' },",
+											"                deleted: { type: \"boolean\", default: false },",
+											"                email: { type: \"string\", default: '' },",
+											"                enabled: { type: \"boolean\", default: false },",
+											"                firstName: { type: \"string\", default: '' },",
+											"                id: { type: \"string\", default: '' },",
+											"                idprovider_id: { type: \"string\", default: '' },",
+											"                lastLogin: { type: \"string\", default: '' },",
+											"                lastName: { type: \"string\", default: '' },",
+											"                mfaVerificationExcluded: { type: \"boolean\", default: false },",
+											"                mfaVerifiersConfigured: { type: \"string\", default: '' },",
+											"                organizationId: { type: \"string\", default: '' },",
+											"                phoneNumber: { type: \"string\", default: '' },",
+											"                type: { type: \"string\", default: '' },",
+											"                updatedAt: { type: \"string\", default: '' },",
+											"                username: { type: \"string\", default: '' }",
+											"            }",
+											"        }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"bgSchema\", bgSchema );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"{{bgRandomName}}\",\n    \"parentOrganizationId\": \"{{anypointRootOrganizationId}}\",\n    \"ownerId\": \"{{anypointRootOrganizationOwnerId}}\",\n    \"entitlements\": {\n        \"createSubOrgs\": true,\n        \"createEnvironments\": true,\n        \"globalDeployment\": false,\n        \"vCoresProduction\": {\n            \"assigned\": 0.2\n        },\n        \"vCoresSandbox\": {\n            \"assigned\": 0.2\n        },\n        \"vCoresDesign\": {\n            \"assigned\": 0.1\n        },\n        \"staticIps\": {\n            \"assigned\": 1\n        },\n        \"vpcs\": {\n            \"assigned\": 0\n        },\n        \"loadBalancer\": {\n            \"assigned\": 0\n        },\n        \"vpns\": {\n            \"assigned\": 0\n        }\n    }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Replace organization",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"//Validating response schema",
+											"const bgSchema = pm.environment.get( \"bgSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( bgSchema );",
+											"",
+											"eval( globals.next )( \"Find organization by ID\" );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn(\"{{$guid}}\");",
+											"",
+											"pm.environment.set( \"bgRandomName\", \"test-business-group-replace-\" + randomId );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"{{bgRandomName}}\",\n    \"parentOrganizationId\": \"{{anypointRootOrganizationId}}\",\n    \"ownerId\": \"{{anypointRootOrganizationOwnerId}}\",\n    \"entitlements\": {\n        \"createSubOrgs\": true,\n        \"createEnvironments\": true,\n        \"globalDeployment\": false,\n        \"vCoresProduction\": {\n            \"assigned\": 0.1\n        },\n        \"vCoresSandbox\": {\n            \"assigned\": 0.1\n        },\n        \"vCoresDesign\": {\n            \"assigned\": 0.1\n        },\n        \"staticIps\": {\n            \"assigned\": 1\n        },\n        \"vpcs\": {\n            \"assigned\": 0\n        },\n        \"loadBalancer\": {\n            \"assigned\": 0\n        },\n        \"vpns\": {\n            \"assigned\": 0\n        }\n    }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgid",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgid"
+									],
+									"variable": [
+										{
+											"key": "orgid",
+											"value": "{{createdBGId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Find organization by ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"//Validating response schema",
+											"const bgFindByIdSchema = pm.environment.get( \"bgFindByIdSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( bgFindByIdSchema );",
+											"",
+											"eval( globals.next )( \"Delete organization\" );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// TODO - check \"domain\", \"mfaRequired\" schema spec issue",
+											"",
+											"const bgFindByIdSchema = {",
+											"    type: \"object\",",
+											"    required: [\"clientId\",\"createdAt\",\"entitlements\"],",
+											"    properties: {",
+											"        // masterBGDetail spec properties",
+											"        sessionTimeout: { type: \"integer\", default: 0 },",
+											"        subscription: {",
+											"            type: \"object\",",
+											"            default: {},",
+											"            properties: {",
+											"                category: { type: \"string\", default: '' },",
+											"                expiration: { type: \"string\", default: '' },",
+											"                type: { type: \"string\", default: '' }",
+											"            }",
+											"        },",
+											"",
+											"        // components/schemas/BGCore spec properties",
+											"        clientId: { type: \"string\" },",
+											"        createdAt: { type: \"string\" },",
+											"        entitlements: {",
+											"            type: \"object\",",
+											"            properties: {",
+											"                angGovernance: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"level\" ],",
+											"                    properties: {",
+											"                        level: { type: \"integer\", default: 0 }",
+											"                    }",
+											"                },",
+											"                anypointSecurityEdgePolicies: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                anypointSecurityTokenization: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                apiCommunityManager: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                apiMonitoring: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"schedules\" ],",
+											"                    properties: {",
+											"                        schedules: { type: \"integer\", default: 0 }",
+											"                    }",
+											"                },",
+											"                apiQuery: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false },",
+											"                        productSKU: { type: \"integer\", default: 0 }",
+											"                    }",
+											"                },",
+											"                apiQueryC360: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                apis: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                appViz: { type: \"boolean\", default: false },",
+											"                armAlerts: { type: \"boolean\", default: false },",
+											"                autoscaling: { type: \"boolean\", default: false },",
+											"                cam: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                createEnvironments: { type: \"boolean\", default: false },",
+											"                createSubOrgs: { type: \"boolean\", default: false },",
+											"                crowd: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"environments\", \"hideApiManagerDesigner\", \"hideFormerApiPlatform\" ],",
+											"                    properties: {",
+											"                        environments: { type: \"boolean\", default: false },",
+											"                        hideApiManagerDesigner: { type: \"boolean\", default: false },",
+											"                        hideFormerApiPlatform: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                crowdSelfServiceMigration: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                designCenter: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"api\", \"mozart\" ],",
+											"                    properties: {",
+											"                        api: { type: \"boolean\", default: false },",
+											"                        mozart: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                exchange2: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                externalIdentity: { type: \"boolean\", default: false },",
+											"                gateways: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"assigned\" ],",
+											"                    properties: {",
+											"                        assigned: { type: \"integer\", default: 0 }",
+											"                    }",
+											"                },",
+											"                globalDeployment: { type: \"boolean\", default: false },",
+											"                hybrid: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"                hybridAutoDiscoverProperties: { type: \"boolean\", default: false },",
+											"                hybridInsight: { type: \"boolean\", default: false },",
+											"                kpiDashboard: {",
+											"                    type: \"object\",",
+											"                    default: {},",
+											"                    required: [ \"enabled\" ],",
+											"                    properties: {",
+											"                        enabled: { type: \"boolean\", default: false }",
+											"                    }",
+											"                },",
+											"            }",
+											"        },",
+											"        environments: { ",
+											"            type: \"array\",",
+											"            items: {",
+											"                default: {},",
+											"                required: [\"clientId\",\"id\",\"isProduction\",\"name\",\"organizationId\",\"type\"],",
+											"                properties: {",
+											"                    clientId: { type: \"string\" },",
+											"                    id: { type: \"string\" },",
+											"                    isProduction: { type: \"boolean\" },",
+											"                    name: { type: \"string\" },",
+											"                    organizationId: { type: \"string\" },",
+											"                    type: { type: \"string\" }",
+											"                }",
+											"            }",
+											"        },",
+											"        id: { type: \"string\", default: '' },",
+											"        idprovider_id: { type: \"string\", default: '' },",
+											"        isAutomaticAdminPromotionExempt: { type: \"boolean\", default: false },",
+											"        isFederated: { type: \"boolean\", default: false },",
+											"        isMaster: { type: \"boolean\", default: false },",
+											"        // mfaRequired: { type: \"boolean\", default: false },",
+											"        name: { type: \"string\", default: '' },",
+											"        ownerId: { type: \"string\", default: '' },",
+											"        parentOrganizationIds: { type: \"array\", items: { type: \"string\" } },",
+											"        properties: { type: \"object\" },",
+											"        subOrganizationIds: { type: \"array\", items: { type: \"string\" } },",
+											"        tenantOrganizationIds: { type: \"array\", items: { type: \"string\" } },",
+											"        updatedAt: { type: \"string\" },",
+											"        owner: {",
+											"            type: \"object\",",
+											"            properties: {",
+											"                createdAt: { type: \"string\", default: '' },",
+											"                deleted: { type: \"boolean\", default: false },",
+											"                email: { type: \"string\", default: '' },",
+											"                enabled: { type: \"boolean\", default: false },",
+											"                firstName: { type: \"string\", default: '' },",
+											"                id: { type: \"string\", default: '' },",
+											"                idprovider_id: { type: \"string\", default: '' },",
+											"                lastLogin: { type: \"string\", default: '' },",
+											"                lastName: { type: \"string\", default: '' },",
+											"                mfaVerificationExcluded: { type: \"boolean\", default: false },",
+											"                mfaVerifiersConfigured: { type: \"string\", default: '' },",
+											"                organizationId: { type: \"string\", default: '' },",
+											"                phoneNumber: { type: \"string\", default: '' },",
+											"                type: { type: \"string\", default: '' },",
+											"                updatedAt: { type: \"string\", default: '' },",
+											"                username: { type: \"string\", default: '' }",
+											"            }",
+											"        }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"bgFindByIdSchema\", bgFindByIdSchema );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgid",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgid"
+									],
+									"variable": [
+										{
+											"key": "orgid",
+											"value": "{{createdBGId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete organization",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"",
+											"console.info( \"Test BG [\" + pm.environment.get( \"bgRandomName\" ) + \"] deleted\" );",
+											"",
+											"pm.environment.unset( \"bgRandomName\" );",
+											"pm.environment.unset( \"createdBGId\" );",
+											"",
+											"eval( globals.next )( \"List organization members\" );",
+											"",
+											"console.info( \"Organizations/Business groups CRUD tests finished\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgid",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgid"
+									],
+									"variable": [
+										{
+											"key": "orgid",
+											"value": "{{createdBGId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Environments",
+			"item": [
+				{
+					"name": "Create environment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"var jsonBody = eval( globals.createBasicTests )();",
+									"",
+									"pm.environment.set( \"createdEnvId\", jsonBody.id );",
+									"",
+									"// Validating response schema",
+									"const envSchema = pm.environment.get( \"envSchema\" );",
+									"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( envSchema );",
+									"",
+									"eval( globals.next )( \"Replace environment\" );"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"console.info( \"Starting Environment CRUD tests\" );",
+									"",
+									"var randomId = pm.variables.replaceIn(\"{{$guid}}\");",
+									"",
+									"pm.environment.set( \"envRandomName\", \"test-environment-\" + randomId );",
+									"",
+									"// Environment schema",
+									"const envSchema = {",
+									"    type: \"object\",",
+									"    required: [\"id\",\"name\",\"organizationId\",\"isProduction\",\"type\",\"clientId\"],",
+									"    properties: {",
+									"        // /components/schemas/env spec properties",
+									"        id: { type: \"string\" },",
+									"        ",
+									"        // components/schemas/envCore spec properties",
+									"        name: { type: \"string\" },",
+									"        organizationId: { type: \"string\" },",
+									"        isProduction: { type: \"boolean\" },",
+									"        type: { type: \"string\" },",
+									"        clientId: { type: \"string\" }",
+									"    }",
+									"}",
+									"",
+									"pm.environment.set( \"envSchema\", envSchema );"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-XSRF-TOKEN",
+								"value": "{{xsrfToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n \"name\": \"{{envRandomName}}\",\n \"type\": \"sandbox\"\n}\n",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/accounts/api/organizations/:orgId/environments",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"accounts",
+								"api",
+								"organizations",
+								":orgId",
+								"environments"
+							],
+							"variable": [
+								{
+									"key": "orgId",
+									"value": "{{anypointRootOrganizationId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Replace environment",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"var randomId = pm.variables.replaceIn(\"{{$guid}}\");",
+									"",
+									"pm.environment.set( \"envRandomName\", \"test-environment-replace-\" + randomId );",
+									"",
+									"// Environments PUT response has no client id",
+									"const envPutSchema = {",
+									"    type: \"object\",",
+									"    required: [\"id\",\"name\",\"organizationId\",\"isProduction\",\"type\"],",
+									"    properties: {",
+									"        // /components/schemas/env spec properties",
+									"        id: { type: \"string\" },",
+									"        ",
+									"        // components/schemas/envCore spec properties",
+									"        name: { type: \"string\" },",
+									"        organizationId: { type: \"string\" },",
+									"        isProduction: { type: \"boolean\" },",
+									"        type: { type: \"string\" }",
+									"    }",
+									"}",
+									"",
+									"pm.environment.set( \"envPutSchema\", envPutSchema );"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+									"",
+									"// Validating response schema",
+									"const envPutSchema = pm.environment.get( \"envPutSchema\" );",
+									"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( envPutSchema );",
+									"",
+									"eval( globals.next )( \"Find environment by ID\" );"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "X-XSRF-TOKEN",
+								"value": "{{xsrfToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n \"name\": \"{{envRandomName}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{url}}/accounts/api/organizations/:orgId/environments/:envId",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"accounts",
+								"api",
+								"organizations",
+								":orgId",
+								"environments",
+								":envId"
+							],
+							"variable": [
+								{
+									"key": "orgId",
+									"value": "{{anypointRootOrganizationId}}"
+								},
+								{
+									"key": "envId",
+									"value": "{{createdEnvId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Find environment by ID",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+									"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+									"",
+									"// Validating response schema",
+									"const envSchema = pm.environment.get( \"envSchema\" );",
+									"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( envSchema );",
+									"",
+									"eval( globals.next )( \"List environments\" );"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-XSRF-TOKEN",
+								"value": "{{xsrfToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/accounts/api/organizations/:orgId/environments/:envId",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"accounts",
+								"api",
+								"organizations",
+								":orgId",
+								"environments",
+								":envId"
+							],
+							"variable": [
+								{
+									"key": "orgId",
+									"value": "{{anypointRootOrganizationId}}"
+								},
+								{
+									"key": "envId",
+									"value": "{{createdEnvId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List environments",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+									"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+									"",
+									"// Validating response schema",
+									"const listEnvsSchema = pm.environment.get( \"listEnvsSchema\" );",
+									"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( listEnvsSchema );",
+									"",
+									"eval( globals.next )( \"Delete environment\" );"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"const listEnvsSchema = {",
+									"    type: \"object\",",
+									"    required: [ \"data\", \"total\" ],",
+									"    properties: {",
+									"        total: { type: \"integer\" },",
+									"        data: {",
+									"            type: \"array\",",
+									"            items: { ",
+									"                type: \"object\",",
+									"                required: [\"id\",\"name\",\"organizationId\",\"isProduction\",\"type\",\"clientId\"],",
+									"                properties: {",
+									"                    // /components/schemas/env spec properties",
+									"                    id: { type: \"string\" },",
+									"                    ",
+									"                    // components/schemas/envCore spec properties",
+									"                    name: { type: \"string\" },",
+									"                    organizationId: { type: \"string\" },",
+									"                    isProduction: { type: \"boolean\" },",
+									"                    type: { type: \"string\" },",
+									"                    clientId: { type: \"string\" }",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"}",
+									"",
+									"pm.environment.set( \"listEnvsSchema\", listEnvsSchema );"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-XSRF-TOKEN",
+								"value": "{{xsrfToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/accounts/api/organizations/:orgId/environments",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"accounts",
+								"api",
+								"organizations",
+								":orgId",
+								"environments"
+							],
+							"variable": [
+								{
+									"key": "orgId",
+									"value": "{{anypointRootOrganizationId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete environment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+									"",
+									"console.info( \"Test environment [\" + pm.environment.get( \"envRandomName\" ) + \"] deleted\" );",
+									"",
+									"pm.environment.unset( \"envRandomName\" );",
+									"pm.environment.unset( \"createdEnvId\" );",
+									"pm.environment.unset( \"envSchema\" );",
+									"pm.environment.unset( \"envPutSchema\" );",
+									"pm.environment.unset( \"listEnvsSchema\" );",
+									"",
+									"eval( globals.next )( \"Find root team\" );",
+									"",
+									"console.info( \"Environment CRUD tests finished\" );"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-XSRF-TOKEN",
+								"value": "{{xsrfToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/accounts/api/organizations/:orgId/environments/:envId",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"accounts",
+								"api",
+								"organizations",
+								":orgId",
+								"environments",
+								":envId"
+							],
+							"variable": [
+								{
+									"key": "orgId",
+									"value": "{{anypointRootOrganizationId}}"
+								},
+								{
+									"key": "envId",
+									"value": "{{createdEnvId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Teams",
+			"item": [
+				{
+					"name": "Move team",
+					"item": [
+						{
+							"name": "Create source parent team",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting 'move team' use case tests\" );",
+											"",
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"sourceTeamRandomName\", \"test-team-source-\" + randomId );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Reading and saving created team ID",
+											"tests[\"Response has an ID\"] = jsonBody.team_id !== undefined;",
+											"",
+											"pm.environment.set( \"createdSourceTeamId\", jsonBody.team_id );",
+											"",
+											"eval( globals.next )( \"Create movable team\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"parent_team_id\": \"{{rootTeamId}}\",\n  \"team_name\": \"{{sourceTeamRandomName}}\",\n  \"team_type\": \"internal\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Create movable team",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"movableTeamRandomName\", \"test-team-movable-\" + randomId );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Reading and saving created team ID",
+											"tests[\"Response has an ID\"] = jsonBody.team_id !== undefined;",
+											"",
+											"pm.environment.set( \"createdMovableTeamId\", jsonBody.team_id );",
+											"",
+											"// Checkin parent team is source team",
+											"var sourceTeamID = pm.environment.get( \"createdSourceTeamId\" );",
+											"var parentTeamID = jsonBody.ancestor_team_ids[1];",
+											"tests[\"Parent team is source team\"] = parentTeamID === sourceTeamID;",
+											"",
+											"eval( globals.next )( \"Create target parent team\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"parent_team_id\": \"{{createdSourceTeamId}}\",\n  \"team_name\": \"{{movableTeamRandomName}}\",\n  \"team_type\": \"internal\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Create target parent team",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"targetTeamRandomName\", \"test-team-target-\" + randomId );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Reading and saving created team ID",
+											"tests[\"Response has an ID\"] = jsonBody.team_id !== undefined;",
+											"",
+											"pm.environment.set( \"createdTargetTeamId\", jsonBody.team_id );",
+											"",
+											"eval( globals.next )( \"Move team\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"parent_team_id\": \"{{rootTeamId}}\",\n  \"team_name\": \"{{targetTeamRandomName}}\",\n  \"team_type\": \"internal\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Move team",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Checkin parent team is target team",
+											"var targetTeamID = pm.environment.get( \"createdTargetTeamId\" );",
+											"var parentTeamID = jsonBody.ancestor_team_ids[1];",
+											"tests[\"Parent team is source team\"] = parentTeamID === targetTeamID;",
+											"",
+											"// Validating return schema",
+											"const movedTeamSchema = {",
+											"    \"type\": \"object\",",
+											"    \"required\": [\"org_id\",\"team_id\",\"team_name\",\"team_type\",\"ancestor_team_ids\",\"created_at\",\"updated_at\",\"previous_ancestor_team_ids\"],",
+											"    \"properties\": {",
+											"        \"org_id\": { \"type\": \"string\" },",
+											"        \"team_id\": { \"type\": \"string\" },",
+											"        \"team_name\": { \"type\": \"string\" },",
+											"        \"team_type\": { \"type\": \"string\" },",
+											"        \"ancestor_team_ids\": {",
+											"            \"type\": \"array\",",
+											"            \"items\": {",
+											"                \"type\": \"string\"",
+											"            }",
+											"        },",
+											"        \"created_at\": { \"type\": \"string\" },",
+											"        \"updated_at\": { \"type\": \"string\" },",
+											"        \"previous_ancestor_team_ids\": {",
+											"            \"type\": \"array\",",
+											"            \"items\": {",
+											"                \"type\": \"string\"",
+											"            }",
+											"        }",
+											"    }",
+											"}",
+											"",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( movedTeamSchema );",
+											"",
+											"eval( globals.next )( \"Delete source parent team\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"parent_team_id\": \"{{createdTargetTeamId}}\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId/parent",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId",
+										"parent"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{createdMovableTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete source parent team",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
+											"",
+											"console.info( \"Test source team [\" + pm.environment.get( \"sourceTeamRandomName\" ) + \"] deleted\" );",
+											"",
+											"pm.environment.unset( \"sourceTeamRandomName\" );",
+											"pm.environment.unset( \"createdSourceTeamId\" );",
+											"",
+											"eval( globals.next )( \"Delete target parent team\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{createdSourceTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete target parent team",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
+											"",
+											"console.info( \"Test target team [\" + pm.environment.get( \"targetTeamRandomName\" ) + \"] deleted\" );",
+											"",
+											"pm.environment.unset( \"targetTeamRandomName\" );",
+											"pm.environment.unset( \"createdTargetTeamId\" );",
+											"pm.environment.unset( \"movableTeamRandomName\" );",
+											"pm.environment.unset( \"createdMovableTeamId\" );",
+											"",
+											"eval( globals.next )( \"List platform permissions\" );",
+											"",
+											"console.info( \"'move team' use case tests finished\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{createdTargetTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Setup",
+					"item": [
+						{
+							"name": "Find root team",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"tests[\"Response list has at least one team\"] = jsonBody.data.length >= 1;",
+											"",
+											"// Root team is the one that has no ancestor team",
+											"var rootTeam = jsonBody.data.filter( team => team.ancestor_team_ids.length === 0 );",
+											"",
+											"tests[\"Response list has the root team\"] = rootTeam.length === 1;",
+											"",
+											"tests[\"Response has a team ID\"] = rootTeam[0].team_id !== undefined;",
+											"",
+											"pm.environment.set( \"rootTeamId\", rootTeam[0].team_id );",
+											"",
+											"console.info( \"Root team [\" + rootTeam[0].team_id + \"] saved for Team testing\" );",
+											"",
+											"eval( globals.next )( \"Create team\" );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting Team tests\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams"
+									],
+									"query": [
+										{
+											"key": "ancestor_team_id",
+											"value": "",
+											"description": "[Array or String] team_id that must appear in the team's ancestor_team_ids.",
+											"disabled": true
+										},
+										{
+											"key": "parent_team_id",
+											"value": "",
+											"description": "[Array or String] team_id of the immediate parent of the team to return.",
+											"disabled": true
+										},
+										{
+											"key": "team_id",
+											"value": "",
+											"description": "id of the team to return.",
+											"disabled": true
+										},
+										{
+											"key": "team_type",
+											"value": "",
+											"description": "return only teams that are of this type",
+											"disabled": true
+										},
+										{
+											"key": "search",
+											"value": "",
+											"description": "A search string to use for case-insensitive partial matches on team name",
+											"disabled": true
+										},
+										{
+											"key": "offset",
+											"value": "0",
+											"description": "The number of records to omit from the response.",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "250",
+											"description": "Maximum records to retrieve per request. \nDefault: 25\nMin: 0 \nMax: 500 ",
+											"disabled": true
+										},
+										{
+											"key": "sort",
+											"value": "",
+											"description": "The field to sort on.\nDefault value: team_name\nEnum values:  team_name, created_at, team_id",
+											"disabled": true
+										},
+										{
+											"key": "ascending",
+											"value": "1",
+											"description": "Whether to sort ascending or descending.\nDefault value: true",
+											"disabled": true
+										}
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Team permissions (TP)",
+					"item": [
+						{
+							"name": "List platform permissions",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 304\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Check whether there are roles. Response structure is data.products[].permissions[].role_id",
+											"tests[\"Response has products\"] = jsonBody.products.length >= 1;",
+											"",
+											"var roleIds = [];",
+											"",
+											"_.map( jsonBody.products, function getPermissions( product ) {",
+											"    _.map( product.permissions, function getRoleIds( permission ) {",
+											"        // to simplify the test, we only keep roles which only orgId is required",
+											"        // TODO - check whether the provider needs both scenarios, orgId and envId",
+											"        if( ! _.contains( permission.context_keys, \"envId\" ) ) {",
+											"            roleIds.push( permission.role_id ); ",
+											"        }",
+											"    } );",
+											"} );",
+											"",
+											"tests[\"Response has permissions and roled IDs\"] = roleIds.length >= 1;",
+											"",
+											"pm.environment.set( \"roleIds\", roleIds );",
+											"",
+											"eval( globals.next )( \"TP - Create team\" );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting Team Permission tests\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/cs/conditionalAssignments?intent=role_assignment",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"cs",
+										"conditionalAssignments"
+									],
+									"query": [
+										{
+											"key": "intent",
+											"value": "role_assignment"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "TP - Create team",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"teamRandomName\", \"test-team-permissions-\" + randomId );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"pm.environment.set( \"tpCreatedTeamId\", jsonBody.team_id );",
+											"",
+											"eval( globals.next )( \"Add team role\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"parent_team_id\": \"{{rootTeamId}}\",\n  \"team_name\": \"{{teamRandomName}}\",\n  \"team_type\": \"internal\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add team role",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
+											"",
+											"eval( globals.next )( \"List team roles\" );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var roleIds = pm.environment.get( \"roleIds\" );",
+											"",
+											"// Randomly choose a role in roles list",
+											"var roleIndex = _.random ( 0, roleIds.length - 1 );",
+											"",
+											"pm.environment.set( \"roleId\", roleIds[ roleIndex ] );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "[\n  {\n    \"role_id\": \"{{roleId}}\",\n    \"context_params\": {\n      \"org\": \"{{anypointRootOrganizationId}}\"\n    }\n  }\n]",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId/roles",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId",
+										"roles"
+									],
+									"query": [
+										{
+											"key": "offset",
+											"value": "0",
+											"description": "The number of records to omit from the response.\nDefault value: 0\nMin value:0",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "250",
+											"description": "Maximum records to retrieve per request.\nDefault value: 25\nMin value: 0\nMax value: 500",
+											"disabled": true
+										}
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{tpCreatedTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List team roles",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"",
+											"//Validating response schema",
+											"const teamRolesSchema = pm.environment.get( \"teamRolesSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamRolesSchema );",
+											"",
+											"eval( globals.next )( \"Delete team role\" );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Team roles schema",
+											"const teamRolesSchema = {",
+											"    type: \"object\",",
+											"    required: [\"total\",\"data\"],",
+											"    properties: {",
+											"        total: { type: \"integer\" },",
+											"        data: {",
+											"            type: \"array\",",
+											"            items: {",
+											"                type: \"object\",",
+											"                required: [\"name\",\"role_id\",\"context_params\"],",
+											"                properties: {",
+											"                    name: { type: \"string\" },",
+											"                    role_id: { type: \"string\" },",
+											"                    context_params: {",
+											"                        type: \"object\",",
+											"                        properties: {",
+											"                            org: { type: \"string\" },",
+											"                            envId: { type: \"string\" }",
+											"                        }",
+											"                    }",
+											"                }",
+											"            }",
+											"        }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"teamRolesSchema\", teamRolesSchema );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId/roles",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId",
+										"roles"
+									],
+									"query": [
+										{
+											"key": "role_ids",
+											"value": "833ab9ca-0c72-45ba-9764-1df83240db57",
+											"description": "return only role assignments containing one of the supplied role_ids",
+											"disabled": true
+										},
+										{
+											"key": "search",
+											"value": "nothing at all",
+											"description": "A search string to use for case-insensitive partial matches on role name",
+											"disabled": true
+										},
+										{
+											"key": "offset",
+											"value": "0",
+											"description": "The number of records to omit from the response.",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "zeraz",
+											"description": "Maximum records to retrieve per request. \nDefault: 25\nMin: 0 \nMax: 500 ",
+											"disabled": true
+										}
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{tpCreatedTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete team role",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
+											"",
+											"eval( globals.next )( \"TP - Delete team\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "[\n  {\n    \"role_id\": \"{{roleId}}\",\n    \"context_params\": {\n      \"org\": \"{{anypointRootOrganizationId}}\"\n    }\n  }\n]",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId/roles",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId",
+										"roles"
+									],
+									"query": [
+										{
+											"key": "offset",
+											"value": "0",
+											"description": "The number of records to omit from the response.\nDefault value: 0\nMin value:0",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "250",
+											"description": "Maximum records to retrieve per request.\nDefault value: 25\nMin value: 0\nMax value: 500",
+											"disabled": true
+										}
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{tpCreatedTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "TP - Delete team",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
+											"",
+											"console.info( \"Test team [\" + pm.environment.get( \"teamRandomName\" ) + \"] deleted after team permissions test\" );",
+											"",
+											"pm.environment.unset( \"teamRandomName\" );",
+											"pm.environment.unset( \"tpCreatedTeamId\" );",
+											"",
+											"eval( globals.next )( \"Create single user\" );",
+											"",
+											"console.info( \"Team Permission tests finished\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{tpCreatedTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Team group mappings (TGM)",
+					"item": [
+						{
+							"name": "TGM - Create team",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"teamRandomName\", \"test-team-group-mappings-\" + randomId );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var data = pm.response.json();",
+											"",
+											"pm.environment.set( \"tgmCreatedTeamId\", data.team_id );",
+											"",
+											"// Save CSRF token for next test request",
+											"eval( globals.saveXSRFToken )();",
+											"",
+											"// Set next test",
+											"postman.setNextRequest( \"Add team group mappings\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"parent_team_id\": \"{{rootTeamId}}\",\n  \"team_name\": \"{{teamRandomName}}\",\n  \"team_type\": \"internal\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add team group mappings",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"groupName1\", \"group-\" + randomId );",
+											"",
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"groupName2\", \"group-\" + randomId );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
+											"",
+											"// Save CSRF token for next test request",
+											"eval( globals.saveXSRFToken )();",
+											"",
+											"// Set next test",
+											"postman.setNextRequest( \"List team group mappings\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "[\n  {\n    \"external_group_name\": \"{{groupName1}}\",\n    \"membership_type\": \"maintainer\",\n    \"provider_id\": \"6056c065-5da7-4b55-85ec-be6b275e3793\"\n  },\n  {\n    \"external_group_name\": \"{{groupName2}}\",\n    \"membership_type\": \"member\",\n    \"provider_id\": \"6056c065-5da7-4b55-85ec-be6b275e3793\"\n  }\n]",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId/groupmappings",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId",
+										"groupmappings"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{tgmCreatedTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List team group mappings",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"// Team group mappings schema",
+											"const teamGroupMappingsSchema = {",
+											"    \"type\": \"object\",",
+											"    \"required\": [\"total\",\"data\"],",
+											"    \"properties\": {",
+											"        \"total\": { \"type\": \"integer\" },",
+											"        \"data\": {",
+											"            \"type\": \"array\",",
+											"            \"items\": {",
+											"                \"type\": \"object\",",
+											"                \"required\": [\"membership_type\",\"external_group_name\",\"provider_id\"],",
+											"                \"properties\": {",
+											"                    \"membership_type\": { \"type\": \"string\" },",
+											"                    \"external_group_name\": { \"type\": \"string\" },",
+											"                    \"provider_id\": { \"type\": \"string\" }",
+											"                }",
+											"            }",
+											"        }",
+											"    }",
+											"}",
+											"",
+											"//Validating response schema",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamGroupMappingsSchema );",
+											"",
+											"// Save CSRF token for next test request",
+											"eval( globals.saveXSRFToken )();",
+											"",
+											"// Set next test",
+											"postman.setNextRequest( \"Delete team group mappings\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId/groupmappings?offset=0&limit=250",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId",
+										"groupmappings"
+									],
+									"query": [
+										{
+											"key": "membership_type",
+											"value": "",
+											"description": "Include the group access mappings that grant the provided membership type By default, all group access mappings are returned",
+											"disabled": true
+										},
+										{
+											"key": "search",
+											"value": "",
+											"description": "A search string to use for case-insensitive partial matches on external group name",
+											"disabled": true
+										},
+										{
+											"key": "offset",
+											"value": "0",
+											"description": "The number of records to omit from the response.\nDefault value: 0\nMin value: 0"
+										},
+										{
+											"key": "limit",
+											"value": "250",
+											"description": "Maximum records to retrieve per request. \nDefault: 25\nMin: 0 \nMax: 500 "
+										}
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{tgmCreatedTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete team group mappings",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
+											"",
+											"// Save CSRF token for next test request",
+											"eval( globals.saveXSRFToken )();",
+											"",
+											"// Set next test",
+											"postman.setNextRequest( \"TGM - Delete team\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "[]",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId/groupmappings",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId",
+										"groupmappings"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{tgmCreatedTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "TGM - Delete team",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
+											"",
+											"console.info( \"Test team [\" + pm.environment.get( \"teamRandomName\" ) + \"] deleted after team group mappings test\" );",
+											"",
+											"pm.environment.unset( \"teamRandomName\" );",
+											"pm.environment.unset( \"tgmCreatedTeamId\" );",
+											"",
+											"postman.setNextRequest( \"Create single user\" );",
+											"",
+											"eval( globals.saveXSRFToken )();"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{tgmCreatedTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "CRUD",
+					"item": [
+						{
+							"name": "Create team",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting Team CRUD tests\" );",
+											"",
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"teamRandomName\", \"test-team-\" + randomId );",
+											"",
+											"// Team schema",
+											"const teamSchema = {",
+											"    type: \"object\",",
+											"    required: [\"org_id\",\"team_id\",\"team_name\",\"team_type\",\"ancestor_team_ids\",\"created_at\",\"updated_at\"],",
+											"    properties: {",
+											"        // /components/schemas/team spec properties",
+											"        org_id: { type: \"string\" },",
+											"        team_id: { type: \"string\" },",
+											"        team_name: { type: \"string\" },",
+											"        team_type: { type: \"string\" },",
+											"        ancestor_team_ids: {",
+											"            type: \"array\",",
+											"            items: { type: \"string\" }",
+											"        },",
+											"        created_at: { type: \"string\" },",
+											"        updated_at: { type: \"string\" }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"teamSchema\", teamSchema );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Reading and saving created team ID",
+											"tests[\"Response has an ID\"] = jsonBody.team_id !== undefined;",
+											"",
+											"pm.environment.set( \"createdTeamId\", jsonBody.team_id );",
+											"",
+											"//Validating response schema",
+											"const teamSchema = pm.environment.get( \"teamSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamSchema );",
+											"",
+											"eval( globals.next )( \"Update team\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"parent_team_id\": \"{{rootTeamId}}\",\n  \"team_name\": \"{{teamRandomName}}\",\n  \"team_type\": \"internal\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update team",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"teamRandomName\", \"test-team-update-\" + randomId );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"//Validating response schema",
+											"const teamSchema = pm.environment.get( \"teamSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamSchema );",
+											"",
+											"eval( globals.next )( \"Find team by ID\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"team_name\": \"{{teamRandomName}}\",\n  \"team_type\": \"internal\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{createdTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Find team by ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"//Validating response schema",
+											"const teamSchema = pm.environment.get( \"teamSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamSchema );",
+											"",
+											"eval( globals.next )( \"Delete team\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{createdTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete team",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
+											"",
+											"console.info( \"Test team [\" + pm.environment.get( \"teamRandomName\" ) + \"] deleted\" );",
+											"",
+											"pm.environment.unset( \"teamRandomName\" );",
+											"pm.environment.unset( \"createdTeamId\" );",
+											"pm.environment.unset( \"teamSchema\" );",
+											"",
+											"console.info( \"Team CRUD tests finished\" );",
+											"",
+											"eval( globals.next )( \"Create source parent team\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/teams/:teamId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"teams",
+										":teamId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "teamId",
+											"value": "{{createdTeamId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Role Groups",
+			"item": [
+				{
+					"name": "CRUD",
+					"item": [
+						{
+							"name": "Create role group",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting Role Groups CRUD tests\" );",
+											"",
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"randomRoleGroupName\", \"role-group-\" + randomId );",
+											"pm.environment.set( \"randomRoleGroupDescription\", \"role-group-description\" + randomId );",
+											"",
+											"// TODO - add the correct external name property after IDP creation tests are ready",
+											"console.warn( \"TODO - Revisit role group tests after IDP tests are ready\" );",
+											"",
+											"//Role group schema",
+											"const roleGroupSchema = {",
+											"    type: \"object\",",
+											"    required: [\"role_group_id\",\"name\",\"external_names\",\"description\",\"org_id\",\"editable\",\"created_at\",\"updated_at\"],",
+											"    properties: {",
+											"        role_group_id: { type: \"string\" },",
+											"        name: { type: \"string\" },",
+											"        description: { type: \"string\" },",
+											"        org_id: { type: \"string\" },",
+											"        external_names: {",
+											"            type: \"array\",",
+											"            items: {",
+											"                type: \"object\",",
+											"                required: [\"external_group_name\",\"provider_id\"],",
+											"                properties: {",
+											"                    external_group_name: { type: \"string\" },",
+											"                    provider_id: { type: \"string\" }",
+											"                }",
+											"            }",
+											"        },",
+											"        editable: { type: \"boolean\" },",
+											"        created_at: { type: \"string\" },",
+											"        updated_at: { type: \"string\" },",
+											"        user_count: { type: \"integer\" }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"roleGroupSchema\", roleGroupSchema );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Reading and saving created role group ID",
+											"tests[\"Response has an ID\"] = jsonBody.role_group_id !== undefined;",
+											"",
+											"pm.environment.set( \"createdRoleGroupId\", jsonBody.role_group_id );",
+											"",
+											"//Validating response schema",
+											"const roleGroupSchema = pm.environment.get( \"roleGroupSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( roleGroupSchema );",
+											"",
+											"eval( globals.next )( \"Find role group by ID\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"{{randomRoleGroupName}}\",\n  \"description\": \"{{randomRoleGroupDescription}}\",\n  \"external_names\": []\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:org-id/rolegroups",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":org-id",
+										"rolegroups"
+									],
+									"variable": [
+										{
+											"key": "org-id",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Find role group by ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"// var data = pm.response.json();",
+											"",
+											"// //Validating response schema",
+											"// const teamSchema = pm.environment.get( \"teamSchema\" );",
+											"// tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamSchema );",
+											"",
+											"eval( globals.next )( \"List role groups\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"protocolProfileBehavior": {
+								"disableBodyPruning": true
+							},
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:org-id/rolegroups/:rolegroup-id",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":org-id",
+										"rolegroups",
+										":rolegroup-id"
+									],
+									"variable": [
+										{
+											"key": "org-id",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "rolegroup-id",
+											"value": "{{createdRoleGroupId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List role groups",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"// var data = pm.response.json();",
+											"",
+											"// //Validating response schema",
+											"// const teamSchema = pm.environment.get( \"teamSchema\" );",
+											"// tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamSchema );",
+											"",
+											"eval( globals.next )( \"Update role group\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:org-id/rolegroups",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":org-id",
+										"rolegroups"
+									],
+									"variable": [
+										{
+											"key": "org-id",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update role group",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"randomRoleGroupName\", \"role-group-\" + randomId );",
+											"pm.environment.set( \"randomRoleGroupDescription\", \"role-group-description\" + randomId );",
+											"//pm.environment.set( \"randomRoleGroupExternalName\", \"role-group-external-name-\" + randomId );",
+											"",
+											"// TODO - add the correct external name after making IDP creation work"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"//Validating response schema",
+											"const roleGroupSchema = pm.environment.get( \"roleGroupSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( roleGroupSchema );",
+											"",
+											"eval( globals.next )( \"Delete role group\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"{{randomRoleGroupName}}\",\n  \"description\": \"{{randomRoleGroupDescription}}\",\n  \"external_names\": []\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:org-id/rolegroups/:rolegroup-id",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":org-id",
+										"rolegroups",
+										":rolegroup-id"
+									],
+									"variable": [
+										{
+											"key": "org-id",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "rolegroup-id",
+											"value": "{{createdRoleGroupId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete role group",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"//Validating response schema",
+											"const deleteRoleGroupSchema = pm.environment.get( \"deleteRoleGroupSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( deleteRoleGroupSchema );",
+											"",
+											"console.info( \"Test role group [\" + pm.environment.get( \"randomRoleGroupName\" ) + \"] deleted\" );",
+											"",
+											"pm.environment.unset( \"randomRoleGroupName\" );",
+											"pm.environment.unset( \"randomRoleGroupDescription\" );",
+											"pm.environment.unset( \"randomRoleGroupExternalName\" );",
+											"pm.environment.unset( \"createdRoleGroupId\" );",
+											"pm.environment.unset( \"deleteRoleGroupSchema\" );",
+											"",
+											"eval( globals.next )( \"Logout\" );",
+											"",
+											"console.info( \"Role Groups CRUD tests finished\" );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"//delete role group response schema",
+											"const deleteRoleGroupSchema = {",
+											"    type: \"array\",",
+											"    items: { type: \"string\" }",
+											"}",
+											"",
+											"pm.environment.set( \"deleteRoleGroupSchema\", deleteRoleGroupSchema );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:org-id/rolegroups/:rolegroup-id",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":org-id",
+										"rolegroups",
+										":rolegroup-id"
+									],
+									"variable": [
+										{
+											"key": "org-id",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "rolegroup-id",
+											"value": "{{createdRoleGroupId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Users",
+			"item": [
+				{
+					"name": "Single User (SG)",
+					"item": [
+						{
+							"name": "Create single user",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting Single User CRUD tests\" );",
+											"",
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"userRandomUserName\", \"user-\" + randomId );",
+											"pm.environment.set( \"userRandomFirstName\", \"first-\" + randomId );",
+											"pm.environment.set( \"userRandomLastName\", \"last-\" + randomId );",
+											"pm.environment.set( \"userRandomEmail\", \"email-\" + randomId + \"@example.com\" );",
+											"pm.environment.set( \"userRandomPassword\", randomId );",
+											"",
+											"// User schema",
+											"const userSchema = {",
+											"    type: \"object\",",
+											"    required: [\"username\",\"firstName\",\"lastName\",\"email\",\"phoneNumber\",\"organizationId\",\"id\",\"idprovider_id\",\"enabled\",\"createdAt\",\"updatedAt\",\"isFederated\",\"type\",\"organization\"],",
+											"    properties: {",
+											"        username: { type: \"string\" },",
+											"        firstName: { type: \"string\" },",
+											"        lastName: { type: \"string\" },",
+											"        email: { type: \"string\" },",
+											"        phoneNumber: { type: \"string\" },",
+											"        organizationId: { type: \"string\" },",
+											"        id: { type: \"string\" },",
+											"        idprovider_id: { type: \"string\" },",
+											"        enabled: { type: \"boolean\" },",
+											"        createdAt: { type: \"string\" },",
+											"        updatedAt: { type: \"string\" },",
+											"        isFederated: { type: \"boolean\" },",
+											"        type: { type: \"string\" },",
+											"        organization: { type: \"object\" }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"userSchema\", userSchema );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"var jsonBody = eval( globals.createBasicTests )();",
+											"",
+											"pm.environment.set( \"createdUserId\", jsonBody.id );",
+											"",
+											"//Validating response schema",
+											"const userSchema = pm.environment.get( \"userSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( userSchema );",
+											"",
+											"eval( globals.next )( \"Find user by ID\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"username\": \"{{userRandomUserName}}\",\n  \"firstName\" : \"{{userRandomFirstName}}\",\n  \"lastName\" : \"{{userRandomLastName}}\",\n  \"email\" : \"{{userRandomEmail}}\",\n  \"phoneNumber\" : \"111-111-1111\",\n  \"password\": \"{{userRandomPassword}}\"\n}\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/users",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"users"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Find user by ID",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// User schema",
+											"const findUserByIdSchema = {",
+											"    type: \"object\",",
+											"    required: [\"id\",\"username\",\"firstName\",\"lastName\",\"phoneNumber\",\"email\",\"organizationId\",\"enabled\",\"deleted\",\"lastLogin\",\"mfaVerificationExcluded\",\"mfaVerifiersConfigured\",\"idprovider_id\",\"createdAt\",\"updatedAt\",\"isFederated\",\"type\",\"organization\",\"memberOfOrganizations\",\"contributorOfOrganizations\",\"properties\",\"organizationPreferences\"],",
+											"    properties: {",
+											"        id: { type: \"string\" },",
+											"        username: { type: \"string\" },",
+											"        firstName: { type: \"string\" },",
+											"        lastName: { type: \"string\" },",
+											"        phoneNumber: { type: \"string\" },",
+											"        email: { type: \"string\" },",
+											"        organizationId: { type: \"string\" },",
+											"        enabled: { type: \"boolean\" },",
+											"        deleted: { type: \"boolean\" },",
+											"        lastLogin: { type: \"string\" },",
+											"        mfaVerificationExcluded: { type: \"boolean\" },",
+											"        mfaVerifiersConfigured: { type: \"string\" },",
+											"        idprovider_id: { type: \"string\" },",
+											"        createdAt: { type: \"string\" },",
+											"        updatedAt: { type: \"string\" },",
+											"        isFederated: { type: \"boolean\" },",
+											"        type: { type: \"string\" },",
+											"        organization: { type: \"object\" },",
+											"        memberOfOrganizations: { ",
+											"            type: \"array\",",
+											"            items: {",
+											"                type: \"object\"",
+											"            }",
+											"        },",
+											"        contributorOfOrganizations: { ",
+											"            type: \"array\",",
+											"            items: {",
+											"                type: \"object\"",
+											"            }",
+											"        },",
+											"        properties: { ",
+											"            type: \"object\",",
+											"            properties: {",
+											"                cs_auth: { type: \"object\" }",
+											"            }",
+											"        },",
+											"        organizationPreferences: { type: \"object\" },",
+											"        primaryOrganization: {",
+											"            type: \"object\",",
+											"            properties: {",
+											"                id: { type: \"string\" },",
+											"                name: { type: \"string\" }",
+											"            }",
+											"        }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"findUserByIdSchema\", findUserByIdSchema );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"//Validating response schema",
+											"const findUserByIdSchema = pm.environment.get( \"findUserByIdSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( findUserByIdSchema );",
+											"",
+											"eval( globals.next )( \"List users\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/users/:userId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"users",
+										":userId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "userId",
+											"value": "{{createdUserId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List users",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"//Validating response schema",
+											"const listUsersSchema = pm.environment.get( \"listUsersSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( listUsersSchema );",
+											"",
+											"eval( globals.next )( \"Update single user\" );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"// Team group mappings schema",
+											"const listUsersSchema = {",
+											"    \"type\": \"object\",",
+											"    \"required\": [\"total\",\"data\"],",
+											"    \"properties\": {",
+											"        \"total\": { \"type\": \"integer\" },",
+											"        \"data\": {",
+											"            \"type\": \"array\",",
+											"            \"items\": {",
+											"                \"type\": \"object\",",
+											"                \"required\": [\"id\",\"username\",\"firstName\",\"lastName\",\"email\",\"organizationId\",\"enabled\",\"lastLogin\",\"mfaVerificationExcluded\",\"mfaVerifiersConfigured\",\"idprovider_id\",\"createdAt\",\"updatedAt\",\"isFederated\",\"type\",\"organization\"],",
+											"                \"properties\": {",
+											"                    \"id\": { \"type\": \"string\" },",
+											"                    \"username\": { \"type\": \"string\" },",
+											"                    \"firstName\": { \"type\": \"string\" },",
+											"                    \"lastName\": { \"type\": \"string\" },",
+											"                    \"email\": { \"type\": \"string\" },",
+											"                    \"organizationId\": { \"type\": \"string\" },",
+											"                    \"enabled\": { \"type\": \"boolean\" },",
+											"                    \"lastLogin\": { \"type\": \"string\" },",
+											"                    \"mfaVerificationExcluded\": { \"type\": \"boolean\" },",
+											"                    \"mfaVerifiersConfigured\": { \"type\": \"string\" },",
+											"                    \"idprovider_id\": { \"type\": \"string\" },",
+											"                    \"createdAt\": { \"type\": \"string\" },",
+											"                    \"updatedAt\": { \"type\": \"string\" },",
+											"                    \"isFederated\": { \"type\": \"boolean\" },",
+											"                    \"type\": { \"type\": \"string\" },",
+											"                    \"organization\": { \"type\": \"object\" },",
+											"                }",
+											"            }",
+											"        }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"listUsersSchema\", listUsersSchema );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/users",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"users"
+									],
+									"query": [
+										{
+											"key": "type",
+											"value": "all",
+											"description": "specify the type of the user you want to retrive [all, host, proxy]",
+											"disabled": true
+										},
+										{
+											"key": "offset",
+											"value": "0",
+											"description": "The number of records to omit from the response.",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "200",
+											"description": "Maximum records to retrieve per request. default 25, min 0, max 500",
+											"disabled": true
+										}
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update single user",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"userRandomFirstName\", \"first-\" + randomId );",
+											"pm.environment.set( \"userRandomLastName\", \"last-\" + randomId );",
+											"pm.environment.set( \"userRandomEmail\", \"email-\" + randomId + \"@example.com\" );",
+											"pm.environment.set( \"userRandomPassword\", randomId );",
+											"pm.environment.set( \"userRandomTown\", \"town-\" + randomId );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"//Validating response schema",
+											"const userSchema = pm.environment.get( \"userSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( userSchema );",
+											"",
+											"eval( globals.next )( \"Delete single user\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"firstName\" : \"{{userRandomFirstName}}\",\n  \"lastName\" : \"{{userRandomLastName}}\",\n  \"email\" : \"{{userRandomEmail}}\",\n  \"phoneNumber\" : \"222-222-2222\",\n  \"password\": \"{{userRandomPassword}}\",\n  \"enabled\": true,\n  \"properties\" : {\n    \"cs_auth\" :{\n        \"town\": \"{{userRandomTown}}\"\n    }\n  }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/users/:userId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"users",
+										":userId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "userId",
+											"value": "{{createdUserId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete single user",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
+											"",
+											"console.info( \"Test user [\" + pm.environment.get( \"userRandomUserName\" ) + \"] deleted\" );",
+											"",
+											"pm.environment.unset( \"userRandomUserName\" );",
+											"pm.environment.unset( \"userRandomFirstName\" );",
+											"pm.environment.unset( \"userRandomLastName\" );",
+											"pm.environment.unset( \"userRandomEmail\" );",
+											"pm.environment.unset( \"userRandomPassword\" );",
+											"",
+											"eval( globals.next )( \"MU - Create first single user\" );",
+											"",
+											"console.info( \"Single User CRUD tests finished\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/users/:userId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"users",
+										":userId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "userId",
+											"value": "{{createdUserId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Multiple Users (MU)",
+					"item": [
+						{
+							"name": "MU - Create first single user",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting Multiple User CRUD tests\" );",
+											"",
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"userRandomUserName\", \"user-\" + randomId );",
+											"pm.environment.set( \"userRandomFirstName\", \"first-\" + randomId );",
+											"pm.environment.set( \"userRandomLastName\", \"last-\" + randomId );",
+											"pm.environment.set( \"userRandomEmail\", \"email-\" + randomId + \"@example.com\" );",
+											"pm.environment.set( \"userRandomPassword\", randomId );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"pm.environment.set( \"firstUserName\", jsonBody.username );",
+											"pm.environment.set( \"firstUserId\", jsonBody.id );",
+											"",
+											"eval( globals.next )( \"MU - Create second single user\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"username\": \"{{userRandomUserName}}\",\n  \"firstName\" : \"{{userRandomFirstName}}\",\n  \"lastName\" : \"{{userRandomLastName}}\",\n  \"email\" : \"{{userRandomEmail}}\",\n  \"phoneNumber\" : \"111-111-1111\",\n  \"password\": \"{{userRandomPassword}}\"\n}\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/users",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"users"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "MU - Create second single user",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"userRandomUserName\", \"user-\" + randomId );",
+											"pm.environment.set( \"userRandomFirstName\", \"first-\" + randomId );",
+											"pm.environment.set( \"userRandomLastName\", \"last-\" + randomId );",
+											"pm.environment.set( \"userRandomEmail\", \"email-\" + randomId + \"@example.com\" );",
+											"pm.environment.set( \"userRandomPassword\", randomId );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"pm.environment.set( \"secondUserName\", jsonBody.username );",
+											"pm.environment.set( \"secondUserId\", jsonBody.id );",
+											"",
+											"eval( globals.next )( \"Delete multiple users\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"username\": \"{{userRandomUserName}}\",\n  \"firstName\" : \"{{userRandomFirstName}}\",\n  \"lastName\" : \"{{userRandomLastName}}\",\n  \"email\" : \"{{userRandomEmail}}\",\n  \"phoneNumber\" : \"222-222-2222\",\n  \"password\": \"{{userRandomPassword}}\"\n}\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/users",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"users"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete multiple users",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
+											"",
+											"console.info( \"Test users [\" + pm.environment.get( \"firstUserName\" ) + \"] and [\" + pm.environment.get( \"secondUserName\" ) + \"] deleted after multiple user tests\" );",
+											"",
+											"pm.environment.unset( \"firstUserName\" );",
+											"pm.environment.unset( \"firstUserId\" );",
+											"pm.environment.unset( \"secondUserName\" );",
+											"pm.environment.unset( \"secondUserId\" );",
+											"pm.environment.unset( \"userRandomUserName\" );",
+											"pm.environment.unset( \"userRandomFirstName\" );",
+											"pm.environment.unset( \"userRandomLastName\" );",
+											"pm.environment.unset( \"userRandomEmail\" );",
+											"pm.environment.unset( \"userRandomPassword\" );",
+											"",
+											"eval( globals.next )( \"Create role group\" );",
+											"",
+											"console.info( \"Multiple User CRUD tests finished\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "[ \"{{firstUserId}}\",\n  \"{{secondUserId}}\"\n]",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/users",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"users"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "Tests clean up",
+			"item": [
+				{
+					"name": "Delete test root BG",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+									"",
+									"console.info(\"Test root BG [\" + pm.environment.get( \"rootBGRandomName\" ) + \"] deleted\");",
+									"",
+									"pm.environment.unset( \"rootBGId\" );",
+									"pm.environment.unset( \"rootBGRandomName\" );",
+									"",
+									"postman.setNextRequest( \"Logout\" );",
+									"",
+									"eval(globals.saveXSRFToken)();"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-XSRF-TOKEN",
+								"value": "{{xsrfToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/accounts/api/organizations/:orgid",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"accounts",
+								"api",
+								"organizations",
+								":orgid"
+							],
+							"variable": [
+								{
+									"key": "orgid",
+									"value": "{{rootBGId}}"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+									"",
+									"console.info( \"User logged out\" );",
+									"",
+									"pm.globals.unset(\"createBasicTests\");",
+									"pm.globals.unset(\"next\");",
+									"",
+									"postman.setNextRequest( null );"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-XSRF-TOKEN",
+								"value": "{{xsrfToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/accounts/api/access_tokens/{{anypointAccessToken}}",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"accounts",
+								"api",
+								"access_tokens",
+								"{{anypointAccessToken}}"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Work in progress",
+			"item": [
+				{
+					"name": "Invites",
+					"item": [
+						{
+							"name": "Create invite",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "[\n  {\n    \"email\": \"christopher.mordue@mulesoft.com\",\n    \"role_groups\": [\n      {\n        \"role_group_id\": \"0b19f6df-ed81-4fd1-b5e7-4921f5e46f4c\",\n        \"name\": \"Organization Administrators\"\n      }\n    ]\n  }\n]",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/invites",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"invites"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List invites",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/invites",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"invites"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete invite",
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "[\n  520\n]\n",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:orgId/invites",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":orgId",
+										"invites"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Roles",
+					"item": [
+						{
+							"name": "List roles",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{anypoint_access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{url}}/accounts/api/roles",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"roles"
+									],
+									"query": [
+										{
+											"key": "name",
+											"value": "Access Controls Viewer",
+											"description": "The name of a role",
+											"disabled": true
+										},
+										{
+											"key": "description",
+											"value": "",
+											"description": "The description of a role",
+											"disabled": true
+										},
+										{
+											"key": "include_internal",
+											"value": "true",
+											"description": "Include internal roles",
+											"disabled": true
+										},
+										{
+											"key": "search",
+											"value": "",
+											"description": "A search string to use for partial matches of role names",
+											"disabled": true
+										},
+										{
+											"key": "offset",
+											"value": "0",
+											"description": "Pagination parameter to start returning results from this position of matches",
+											"disabled": true
+										},
+										{
+											"key": "limit",
+											"value": "10",
+											"description": "Pagination parameter for how many results to return",
+											"disabled": true
+										},
+										{
+											"key": "ascending",
+											"value": "true",
+											"description": "Sort order for filtering",
+											"disabled": true
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "rolegroups role",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "[\n    {\n        \"context_params\": {\n            \"org\": \"d7ce40ec-2dd2-45c8-b33c-e3d2118508e0\"\n        },\n        \"role_id\": \"177750b0-9407-4261-92b5-93e772c8ea84\"\n    }\n]",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:org-id/rolegroups/:rolegroup-id/roles",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":org-id",
+										"rolegroups",
+										":rolegroup-id",
+										"roles"
+									],
+									"variable": [
+										{
+											"key": "org-id",
+											"value": "{{organization_id}}"
+										},
+										{
+											"key": "rolegroup-id",
+											"value": "{{cloudhub-rolegroup-id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "rolegroups roles",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:org-id/rolegroups/:rolegroup-id/roles",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":org-id",
+										"rolegroups",
+										":rolegroup-id",
+										"roles"
+									],
+									"query": [
+										{
+											"value": "",
+											"disabled": true
+										}
+									],
+									"variable": [
+										{
+											"key": "org-id",
+											"value": "{{organization_id}}"
+										},
+										{
+											"key": "rolegroup-id",
+											"value": "{{cloudhub-rolegroup-id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "rolegroups role",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{anypoint_access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "DELETE",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "[\n    {\n        \"context_params\": {\n            \"org\": \"aa1f55d6-213d-4f60-845c-207286484cd1\"\n        },\n        \"role_group_assignment_id\": \"d4d13720-b479-4af5-8c6c-253daf09152d\",\n        \"role_group_id\": \"00dc3850-1e83-4b3b-918b-86aa646e0daf\",\n        \"role_id\": \"821d84e6-ee22-4646-bf25-5461d49c9690\"\n    }\n]",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/organizations/:org-id/rolegroups/:rolegroup-id/roles",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"organizations",
+										":org-id",
+										"rolegroups",
+										":rolegroup-id",
+										"roles"
+									],
+									"variable": [
+										{
+											"key": "org-id",
+											"value": "{{organization_id}}"
+										},
+										{
+											"key": "rolegroup-id",
+											"value": "{{cloudhub-rolegroup-id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "VPCs",
+					"item": [
+						{
+							"name": "Create VPC",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var data = pm.response.json();",
+											"",
+											"// Reading and saving created environment ID",
+											"tests[\"Response has an ID\"] = data.id !== undefined;",
+											"",
+											"pm.environment.set( \"createdVPCId\", data.id );",
+											"",
+											"// Validating response schema",
+											"// const environmentSchema = pm.environment.get( \"environmentSchema\" );",
+											"// tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( environmentSchema );",
+											"",
+											"eval( globals.next )( \"Delete VPC\" );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting VPC CRUD tests\" );",
+											"",
+											"var name = \"test-vpc-\" + pm.variables.replaceIn(\"{{$guid}}\");",
+											"",
+											"pm.environment.set( \"vpcRandomName\", name );",
+											"",
+											"// Creating a script to validate Environment schema",
+											"// const environmentSchema = {",
+											"//     \"type\": \"object\",",
+											"//     \"required\": [\"id\",\"name\",\"organizationId\",\"isProduction\",\"type\",\"clientId\"],",
+											"//     \"properties\": {",
+											"//         \"id\": { \"type\": \"string\" },",
+											"//         \"name\": { \"type\": \"string\" },",
+											"//         \"organizationId\": { \"type\": \"string\" },",
+											"//         \"isProduction\": { \"type\": \"boolean\" },",
+											"//         \"type\": { \"type\": \"string\" },",
+											"//         \"clientId\": { \"type\": \"string\" }",
+											"//     }",
+											"// }",
+											"",
+											"// pm.environment.set( \"envSchema\", environmentSchema );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n    \"name\": \"{{vpcRandomName}}\",\n    \"cidrBlock\": \"192.168.1.0/24\",\n    \"isDefault\": false,\n    \"region\": \"us-east-2\",\n    \"sharedWith\": [],\n    \"associatedEnvironments\": [],\n    \"firewallRules\": [\n        {\n            \"cidrBlock\": \"0.0.0.0/0\",\n            \"protocol\": \"tcp\",\n            \"fromPort\": 8081,\n            \"toPort\": 8081\n        },\n        {\n            \"cidrBlock\": \"0.0.0.0/0\",\n            \"protocol\": \"tcp\",\n            \"fromPort\": 8082,\n            \"toPort\": 8082\n        },\n        {\n            \"cidrBlock\": \"192.168.1.0/24\",\n            \"protocol\": \"tcp\",\n            \"fromPort\": 8091,\n            \"toPort\": 8091\n        },\n        {\n            \"cidrBlock\": \"192.168.1.0/24\",\n            \"protocol\": \"tcp\",\n            \"fromPort\": 8092,\n            \"toPort\": 8092\n        }\n    ],\n    \"internalDns\": {\n        \"dnsServers\": [],\n        \"specialDomains\": []\n    }\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/cloudhub/api/organizations/:orgId/vpcs",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"cloudhub",
+										"api",
+										"organizations",
+										":orgId",
+										"vpcs"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get vpcs",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{anypoint_access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{url}}/cloudhub/api/organizations/:orgId/vpcs",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"cloudhub",
+										"api",
+										"organizations",
+										":orgId",
+										"vpcs"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{organization_id}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "get vpc by id",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{anypoint_access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{url}}/cloudhub/api/organizations/:orgId/vpcs/:vpcId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"cloudhub",
+										"api",
+										"organizations",
+										":orgId",
+										"vpcs",
+										":vpcId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{organization_id}}"
+										},
+										{
+											"key": "vpcId",
+											"value": "vpc-0aea9f31a049ce288"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "update vpc by id",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [
+										{
+											"key": "token",
+											"value": "{{anypoint_access_token}}",
+											"type": "string"
+										}
+									]
+								},
+								"method": "PUT",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"myTestVPC\",\n  \"region\": \"us-east-1\",\n  \"cidrBlock\": \"192.168.1.0/24\",\n  \"internalDns\": {\n    \"dnsServers\": [],\n    \"specialDomains\": []\n  },\n  \"isDefault\": false,\n  \"associatedEnvironments\": [],\n  \"sharedWith\": [],\n  \"firewallRules\": [\n    {\n      \"cidrBlock\": \"0.0.0.0/0\",\n      \"protocol\": \"tcp\",\n      \"fromPort\": 8081,\n      \"toPort\": 8082\n    },\n    {\n      \"cidrBlock\": \"192.168.1.0/24\",\n      \"protocol\": \"tcp\",\n      \"fromPort\": 8091,\n      \"toPort\": 8092\n    }\n  ]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/cloudhub/api/organizations/:orgId/vpcs/:vpcId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"cloudhub",
+										"api",
+										"organizations",
+										":orgId",
+										"vpcs",
+										":vpcId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{organization_id}}"
+										},
+										{
+											"key": "vpcId",
+											"value": "vpc-0b416d8a1ace2a92f"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete VPC",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"",
+											"console.info( \"Test VPC [\" + pm.environment.get( \"vpcRandomName\" ) + \"] deleted\" );",
+											"",
+											"pm.environment.unset( \"vpcRandomName\" );",
+											"pm.environment.unset( \"createdVPCId\" );",
+											"",
+											"eval( globals.next )( \"Logout\" );",
+											"",
+											"console.info( \"VPC CRUD tests finished\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/cloudhub/api/organizations/:orgId/vpcs/:vpcId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"cloudhub",
+										"api",
+										"organizations",
+										":orgId",
+										"vpcs",
+										":vpcId"
+									],
+									"variable": [
+										{
+											"key": "orgId",
+											"value": "{{anypointRootOrganizationId}}"
+										},
+										{
+											"key": "vpcId",
+											"value": "{{createdVPCId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		}
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{anypointAccessToken}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "anypointRootOrganizationId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "anypointRootOrganizationOwnerId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "anypointUsername",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "anypointPassword",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "url",
+			"value": "https://anypoint.mulesoft.com",
+			"type": "string"
+		}
+	]
+}
