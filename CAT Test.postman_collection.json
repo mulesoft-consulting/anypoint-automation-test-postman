@@ -29,7 +29,8 @@
 									"if( environment.anypointAccessToken !== undefined ) {",
 									"    console.info( \"Login successful, access token saved\" );",
 									"    ",
-									"    eval( globals.next )( \"Refresh XSRF token\" );",
+									"    testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+									"    testHelper.nextTest();",
 									"} else {",
 									"    postman.setNextRequest( null );",
 									"}"
@@ -55,39 +56,6 @@
 									"  } else {",
 									"      console.log( \"Anypoint cookies cleared for [\" + url + \"] before logging in\" );",
 									"  }",
-									"});",
-									"",
-									"",
-									"// Script to save CSRF token and set next test to be executed",
-									"postman.setGlobalVariable( \"next\", ( nextRequestName ) => {",
-									"    // We have to save the XSRF-TOKEN cookie to set X-XSRF-TOKEN in the next API call",
-									"    const cookiesJar = pm.cookies.jar();",
-									"",
-									"    cookiesJar.get( pm.request.url, \"XSRF-TOKEN\", function (error, cookie) {",
-									"        if( cookie === null ) {",
-									"            console.error( \"Error reading XSRF-TOKEN cookie for URL [\" + pm.request.url + \"]\" );",
-									"",
-									"            postman.setNextRequest( null );",
-									"        } else {",
-									"            pm.environment.set( \"xsrfToken\", cookie );",
-									"",
-									"            console.debug( \"XSRF-TOKEN saved for next API call [\" + cookie + \"]\" );",
-									"",
-									"            postman.setNextRequest( nextRequestName );",
-									"        }",
-									"    });",
-									"});",
-									"",
-									"postman.setGlobalVariable( \"createBasicTests\", () => {",
-									"    tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
-									"    tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
-									"",
-									"    var jsonBody = pm.response.json();",
-									"",
-									"    // Reading and saving created environment ID",
-									"    tests[\"Response has an ID\"] = jsonBody.id !== undefined;",
-									"",
-									"    return jsonBody;",
 									"});"
 								],
 								"type": "text/javascript"
@@ -132,7 +100,8 @@
 								"exec": [
 									"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
 									"",
-									"eval( globals.next )( \"Create organization\" );"
+									"testHelper = eval( pm.collectionVariables.get( \"testHelper\" ) );",
+									"testHelper.nextTest();"
 								],
 								"type": "text/javascript"
 							}
@@ -201,7 +170,8 @@
 											"",
 											"console.info( \"Organizations/Business groups members tests finished\" );",
 											"",
-											"eval( globals.next )( \"Create environment\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -296,7 +266,13 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"var jsonBody = eval( globals.createBasicTests )();",
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Reading and saving created environment ID",
+											"tests[\"Response has an ID\"] = jsonBody.id !== undefined;",
 											"",
 											"pm.environment.set( \"createdBGId\", jsonBody.id );",
 											"",
@@ -304,7 +280,8 @@
 											"const bgSchema = pm.environment.get( \"bgSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( bgSchema );",
 											"",
-											"eval( globals.next )( \"Replace organization\" );"
+											"testHelper = eval( pm.collectionVariables.get( \"testHelper\" ) );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -577,7 +554,8 @@
 											"const bgSchema = pm.environment.get( \"bgSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( bgSchema );",
 											"",
-											"eval( globals.next )( \"Find organization by ID\" );"
+											"testHelper = eval( pm.collectionVariables.get( \"testHelper\" ) );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -647,7 +625,8 @@
 											"const bgFindByIdSchema = pm.environment.get( \"bgFindByIdSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( bgFindByIdSchema );",
 											"",
-											"eval( globals.next )( \"Delete organization\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -925,7 +904,8 @@
 											"pm.environment.unset( \"bgRandomName\" );",
 											"pm.environment.unset( \"createdBGId\" );",
 											"",
-											"eval( globals.next )( \"List organization members\" );",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();",
 											"",
 											"console.info( \"Organizations/Business groups CRUD tests finished\" );"
 										],
@@ -977,7 +957,13 @@
 							"listen": "test",
 							"script": {
 								"exec": [
-									"var jsonBody = eval( globals.createBasicTests )();",
+									"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+									"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+									"",
+									"var jsonBody = pm.response.json();",
+									"",
+									"// Reading and saving created environment ID",
+									"tests[\"Response has an ID\"] = jsonBody.id !== undefined;",
 									"",
 									"pm.environment.set( \"createdEnvId\", jsonBody.id );",
 									"",
@@ -985,7 +971,8 @@
 									"const envSchema = pm.environment.get( \"envSchema\" );",
 									"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( envSchema );",
 									"",
-									"eval( globals.next )( \"Replace environment\" );"
+									"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+									"testHelper.nextTest();"
 								],
 								"type": "text/javascript"
 							}
@@ -1105,7 +1092,8 @@
 									"const envPutSchema = pm.environment.get( \"envPutSchema\" );",
 									"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( envPutSchema );",
 									"",
-									"eval( globals.next )( \"Find environment by ID\" );"
+									"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+									"testHelper.nextTest();"
 								],
 								"type": "text/javascript"
 							}
@@ -1170,7 +1158,8 @@
 									"const envSchema = pm.environment.get( \"envSchema\" );",
 									"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( envSchema );",
 									"",
-									"eval( globals.next )( \"List environments\" );"
+									"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+									"testHelper.nextTest();"
 								],
 								"type": "text/javascript"
 							}
@@ -1235,7 +1224,8 @@
 									"const listEnvsSchema = pm.environment.get( \"listEnvsSchema\" );",
 									"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( listEnvsSchema );",
 									"",
-									"eval( globals.next )( \"Delete environment\" );"
+									"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+									"testHelper.nextTest();"
 								],
 								"type": "text/javascript"
 							}
@@ -1324,7 +1314,8 @@
 									"pm.environment.unset( \"envPutSchema\" );",
 									"pm.environment.unset( \"listEnvsSchema\" );",
 									"",
-									"eval( globals.next )( \"Find root team\" );",
+									"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+									"testHelper.nextTest();",
 									"",
 									"console.info( \"Environment CRUD tests finished\" );"
 								],
@@ -1406,7 +1397,8 @@
 											"",
 											"pm.environment.set( \"createdSourceTeamId\", jsonBody.team_id );",
 											"",
-											"eval( globals.next )( \"Create movable team\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -1485,7 +1477,8 @@
 											"var parentTeamID = jsonBody.ancestor_team_ids[1];",
 											"tests[\"Parent team is source team\"] = parentTeamID === sourceTeamID;",
 											"",
-											"eval( globals.next )( \"Create target parent team\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -1559,7 +1552,8 @@
 											"",
 											"pm.environment.set( \"createdTargetTeamId\", jsonBody.team_id );",
 											"",
-											"eval( globals.next )( \"Move team\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -1650,7 +1644,8 @@
 											"",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( movedTeamSchema );",
 											"",
-											"eval( globals.next )( \"Delete source parent team\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -1717,7 +1712,8 @@
 											"pm.environment.unset( \"sourceTeamRandomName\" );",
 											"pm.environment.unset( \"createdSourceTeamId\" );",
 											"",
-											"eval( globals.next )( \"Delete target parent team\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -1776,7 +1772,8 @@
 											"pm.environment.unset( \"movableTeamRandomName\" );",
 											"pm.environment.unset( \"createdMovableTeamId\" );",
 											"",
-											"eval( globals.next )( \"List platform permissions\" );",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();",
 											"",
 											"console.info( \"'move team' use case tests finished\" );"
 										],
@@ -1850,7 +1847,10 @@
 											"",
 											"console.info( \"Root team [\" + rootTeam[0].team_id + \"] saved for Team testing\" );",
 											"",
-											"eval( globals.next )( \"Create team\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();",
+											"",
+											""
 										],
 										"type": "text/javascript"
 									}
@@ -2000,7 +2000,8 @@
 											"",
 											"pm.environment.set( \"roleIds\", roleIds );",
 											"",
-											"eval( globals.next )( \"TP - Create team\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -2070,7 +2071,8 @@
 											"",
 											"pm.environment.set( \"tpCreatedTeamId\", jsonBody.team_id );",
 											"",
-											"eval( globals.next )( \"Add team role\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -2126,7 +2128,8 @@
 											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
 											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
 											"",
-											"eval( globals.next )( \"List team roles\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -2219,7 +2222,8 @@
 											"const teamRolesSchema = pm.environment.get( \"teamRolesSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamRolesSchema );",
 											"",
-											"eval( globals.next )( \"Delete team role\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -2346,7 +2350,8 @@
 											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
 											"tests[\"Response body is empty\"] = pm.response.to.not.be.withBody;",
 											"",
-											"eval( globals.next )( \"TP - Delete team\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -2427,7 +2432,8 @@
 											"pm.environment.unset( \"teamRandomName\" );",
 											"pm.environment.unset( \"tpCreatedTeamId\" );",
 											"",
-											"eval( globals.next )( \"Create single user\" );",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();",
 											"",
 											"console.info( \"Team Permission tests finished\" );"
 										],
@@ -2943,7 +2949,8 @@
 											"const teamSchema = pm.environment.get( \"teamSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamSchema );",
 											"",
-											"eval( globals.next )( \"Update team\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -3014,7 +3021,8 @@
 											"const teamSchema = pm.environment.get( \"teamSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamSchema );",
 											"",
-											"eval( globals.next )( \"Find team by ID\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -3079,7 +3087,8 @@
 											"const teamSchema = pm.environment.get( \"teamSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamSchema );",
 											"",
-											"eval( globals.next )( \"Delete team\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -3151,7 +3160,8 @@
 											"",
 											"console.info( \"Team CRUD tests finished\" );",
 											"",
-											"eval( globals.next )( \"Create source parent team\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -3270,7 +3280,8 @@
 											"const roleGroupSchema = pm.environment.get( \"roleGroupSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( roleGroupSchema );",
 											"",
-											"eval( globals.next )( \"Find role group by ID\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -3332,7 +3343,8 @@
 											"// const teamSchema = pm.environment.get( \"teamSchema\" );",
 											"// tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamSchema );",
 											"",
-											"eval( globals.next )( \"List role groups\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -3402,7 +3414,8 @@
 											"// const teamSchema = pm.environment.get( \"teamSchema\" );",
 											"// tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( teamSchema );",
 											"",
-											"eval( globals.next )( \"Update role group\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -3468,7 +3481,8 @@
 											"const roleGroupSchema = pm.environment.get( \"roleGroupSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( roleGroupSchema );",
 											"",
-											"eval( globals.next )( \"Delete role group\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -3541,7 +3555,8 @@
 											"pm.environment.unset( \"createdRoleGroupId\" );",
 											"pm.environment.unset( \"deleteRoleGroupSchema\" );",
 											"",
-											"eval( globals.next )( \"Logout\" );",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();",
 											"",
 											"console.info( \"Role Groups CRUD tests finished\" );"
 										],
@@ -3667,7 +3682,13 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"var jsonBody = eval( globals.createBasicTests )();",
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Reading and saving created environment ID",
+											"tests[\"Response has an ID\"] = jsonBody.id !== undefined;",
 											"",
 											"pm.environment.set( \"createdUserId\", jsonBody.id );",
 											"",
@@ -3675,7 +3696,8 @@
 											"const userSchema = pm.environment.get( \"userSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( userSchema );",
 											"",
-											"eval( globals.next )( \"Find user by ID\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -3796,7 +3818,8 @@
 											"const findUserByIdSchema = pm.environment.get( \"findUserByIdSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( findUserByIdSchema );",
 											"",
-											"eval( globals.next )( \"List users\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -3852,7 +3875,8 @@
 											"const listUsersSchema = pm.environment.get( \"listUsersSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( listUsersSchema );",
 											"",
-											"eval( globals.next )( \"Update single user\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -3981,7 +4005,8 @@
 											"const userSchema = pm.environment.get( \"userSchema\" );",
 											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( userSchema );",
 											"",
-											"eval( globals.next )( \"Delete single user\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -4050,7 +4075,8 @@
 											"pm.environment.unset( \"userRandomEmail\" );",
 											"pm.environment.unset( \"userRandomPassword\" );",
 											"",
-											"eval( globals.next )( \"MU - Create first single user\" );",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();",
 											"",
 											"console.info( \"Single User CRUD tests finished\" );"
 										],
@@ -4139,7 +4165,8 @@
 											"pm.environment.set( \"firstUserName\", jsonBody.username );",
 											"pm.environment.set( \"firstUserId\", jsonBody.id );",
 											"",
-											"eval( globals.next )( \"MU - Create second single user\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -4214,7 +4241,8 @@
 											"pm.environment.set( \"secondUserName\", jsonBody.username );",
 											"pm.environment.set( \"secondUserId\", jsonBody.id );",
 											"",
-											"eval( globals.next )( \"Delete multiple users\" );"
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
 										],
 										"type": "text/javascript"
 									}
@@ -4282,7 +4310,8 @@
 											"pm.environment.unset( \"userRandomEmail\" );",
 											"pm.environment.unset( \"userRandomPassword\" );",
 											"",
-											"eval( globals.next )( \"Create role group\" );",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();",
 											"",
 											"console.info( \"Multiple User CRUD tests finished\" );"
 										],
@@ -4399,9 +4428,6 @@
 									"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
 									"",
 									"console.info( \"User logged out\" );",
-									"",
-									"pm.globals.unset(\"createBasicTests\");",
-									"pm.globals.unset(\"next\");",
 									"",
 									"postman.setNextRequest( null );"
 								],
@@ -5117,6 +5143,11 @@
 		{
 			"key": "url",
 			"value": "https://anypoint.mulesoft.com",
+			"type": "string"
+		},
+		{
+			"key": "testHelper",
+			"value": "function loadHelpers() {\n    const nextTestMap = new Map();\n\n    nextTestMap.set( 'User credentials login', 'Refresh XSRF token' );\n    nextTestMap.set( 'Refresh XSRF token', 'Create organization' );\n    nextTestMap.set( 'Create organization', 'Replace organization' );\n    nextTestMap.set( 'Replace organization', 'Find organization by ID' );\n    nextTestMap.set( 'Find organization by ID', 'Delete organization' );\n    nextTestMap.set( 'Delete organization', 'List organization members' );\n    nextTestMap.set( 'List organization members', 'Create environment' );\n    nextTestMap.set( 'Create environment', 'Replace environment' );\n    nextTestMap.set( 'Replace environment', 'Find environment by ID' );\n    nextTestMap.set( 'Find environment by ID', 'List environments' );\n    nextTestMap.set( 'List environments', 'Delete environment' );\n    nextTestMap.set( 'Delete environment', 'Find root team' );\n    nextTestMap.set( 'Find root team', 'Create team' );\n    nextTestMap.set( 'Create team', 'Update team' );\n    nextTestMap.set( 'Update team', 'Find team by ID' );\n    nextTestMap.set( 'Find team by ID', 'Delete team' );\n    nextTestMap.set( 'Delete team', 'Create source parent team' );\n    nextTestMap.set( 'Create source parent team', 'Create movable team' );\n    nextTestMap.set( 'Create movable team', 'Create target parent team' );\n    nextTestMap.set( 'Create target parent team', 'Move team' );\n    nextTestMap.set( 'Move team', 'Delete source parent team' );\n    nextTestMap.set( 'Delete source parent team', 'Delete target parent team' );\n    nextTestMap.set( 'Delete target parent team', 'List platform permissions' );\n    nextTestMap.set( 'List platform permissions', 'TP - Create team' );\n    nextTestMap.set( 'TP - Create team', 'Add team role' );\n    nextTestMap.set( 'Add team role', 'List team roles' );\n    nextTestMap.set( 'List team roles', 'Delete team role' );\n    nextTestMap.set( 'Delete team role', 'TP - Delete team' );\n    nextTestMap.set( 'TP - Delete team', 'Create single user' );\n    nextTestMap.set( 'Create single user', 'Find user by ID' );\n    nextTestMap.set( 'Find user by ID', 'List users' );\n    nextTestMap.set( 'List users', 'Update single user' );\n    nextTestMap.set( 'Update single user', 'Delete single user' );\n    nextTestMap.set( 'Delete single user', 'MU - Create first single user' );\n    nextTestMap.set( 'MU - Create first single user', 'MU - Create second single user' );\n    nextTestMap.set( 'MU - Create second single user', 'Delete multiple users' );\n    nextTestMap.set( 'Delete multiple users', 'Create role group' );\n    nextTestMap.set( 'Create role group', 'Find role group by ID' );\n    nextTestMap.set( 'Find role group by ID', 'List role groups' );\n    nextTestMap.set( 'List role groups', 'Update role group' );\n    nextTestMap.set( 'Update role group', 'Delete role group' );\n    nextTestMap.set( 'Delete role group', 'Logout' );\n    nextTestMap.set( 'Logout', null );\n\n    let helpers = {};\n    helpers.nextTest = function next() {\n        // We have to save the XSRF-TOKEN cookie to set X-XSRF-TOKEN in the next API call\n        const cookiesJar = pm.cookies.jar();\n        cookiesJar.get( pm.request.url, \"XSRF-TOKEN\", function (error, cookie) {\n            if( cookie === null ) {\n                console.error( \"Error reading XSRF-TOKEN cookie for URL [\" + pm.request.url + \"]\" );\n                postman.setNextRequest( null );\n            } else {\n                nextTestName = nextTestMap.get( request.name );\n\n                if( nextTestName === undefined ) {\n                    console.error( \"Next step not defined for current test [\" + request.name + \"]\" );\n                    postman.setNextRequest( null );\n                } else {\n                    pm.environment.set( \"xsrfToken\", cookie );\n                    console.debug( \"XSRF-TOKEN saved for next API call [\" + cookie + \"]\" );\n                    postman.setNextRequest( nextTestName );\n                }\n            }\n        });\n    };\n    \n    return helpers;\n};\nloadHelpers();",
 			"type": "string"
 		}
 	]
