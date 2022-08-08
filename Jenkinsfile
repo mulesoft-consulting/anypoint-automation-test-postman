@@ -3,6 +3,7 @@ pipeline {
 
     tools { nodejs "Newman" }
     
+    
     stages {
         stage('Checkout') {
             steps {
