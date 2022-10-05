@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "abb9c449-45e0-471e-b756-9ab567be4964",
+		"_postman_id": "956dcdc6-7373-4e98-9a98-7bd9745ec575",
 		"name": "CAT Test",
 		"description": "This is a Postman collection intended to check URIs, inputs and outputs of Anypoint APIs that the Terraform provider is based on. For documentation purposes, check other CAT Postman collections.\n\nThe following collection variables are required for this collection to run:\n\n*   anypointRootOrganizationId - root anypoint platform organization ID;\n*   anypointRootOrganizationOwnerId - the user id to own the BGs created during the tests\n*   anypointUsername\n*   anypointPassword\n*   url\n    \n\nThe first test to run is '/CAT Test/Tests setup/User credentials login'. Widely used functions are declared in this first test \"Pre-request script\", check them out.",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
@@ -4445,7 +4445,7 @@
 							}
 						],
 						"url": {
-							"raw": "{{url}}/accounts/api/access_tokens/{{anypointAccessToken}}",
+							"raw": "{{url}}/accounts/api/access_tokens/:accessToken",
 							"host": [
 								"{{url}}"
 							],
@@ -4453,7 +4453,13 @@
 								"accounts",
 								"api",
 								"access_tokens",
-								"{{anypointAccessToken}}"
+								":accessToken"
+							],
+							"variable": [
+								{
+									"key": "accessToken",
+									"value": "{{anypointAccessToken}}"
+								}
 							]
 						}
 					},
@@ -5087,6 +5093,1131 @@
 					]
 				}
 			]
+		},
+		{
+			"name": "Connected Apps",
+			"item": [
+				{
+					"name": "Its own behalf (IOB)",
+					"item": [
+						{
+							"name": "IOB - Create connected app",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting Connected Apps (on its own behalf) CRUD tests\" );",
+											"",
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"randomConnAppName\", \"connected-app-\" + randomId );",
+											"",
+											"//Connected App schema",
+											"const connAppSchema = {",
+											"    type: \"object\",",
+											"    required: [\"client_name\",\"client_id\",\"client_secret\",\"owner_org_id\",\"owner_user_id\",\"grant_types\",\"audience\",\"enabled\",\"public_keys\",\"client_uri\",\"redirect_uris\",\"scopes\",\"policy_uri\",\"tos_uri\",\"cert_expiry\"],",
+											"    properties: {",
+											"        // components/schemas/connectedAppCore",
+											"        client_name: { type: \"string\" },",
+											"        grant_types: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        redirect_uris: { type: \"array\", items: { type: \"string\" } },",
+											"        scopes: { type: \"array\", items: { type: \"string\" } },",
+											"        public_keys: { type: \"array\", items: { type: \"string\" } },",
+											"        client_uri: { type: [ \"string\", \"null\" ] },",
+											"        audience: { type: \"string\" },",
+											"",
+											"        // components/schemas/connectedAppRespExt",
+											"        client_id: { type: \"string\" },",
+											"        client_secret: { type: \"string\" },",
+											"        owner_org_id: { type: \"string\" },",
+											"        owner_user_id: { type: \"string\" },",
+											"        enabled: { type: \"boolean\" },",
+											"        policy_uri: { type: [ \"string\", \"null\" ] },",
+											"        tos_uri: { type: [ \"string\", \"null\" ] },",
+											"        cert_expiry: { type: [ \"string\", \"null\" ] }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"connAppSchema\", connAppSchema );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Reading and saving created connected app ID",
+											"tests[\"Response has an ID\"] = jsonBody.client_id !== undefined;",
+											"",
+											"pm.environment.set( \"createdConnAppId\", jsonBody.client_id );",
+											"",
+											"// Validating response schema",
+											"const connAppSchema = pm.environment.get( \"connAppSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( connAppSchema );",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"client_name\": \"{{randomConnAppName}}\",\n  \"grant_types\": [\n    \"client_credentials\"\n  ],\n  \"redirect_uris\": [],\n  \"scopes\": [],\n  \"public_keys\": [],\n  \"audience\": \"internal\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/connectedApplications",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"connectedApplications"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "IOB - Add scopes",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"scopes\": [\n    {\n      \"scope\": \"admin:ang_governance_profiles\",\n      \"context_params\": {\n        \"org\": \"{{anypointRootOrganizationId}}\"\n      }\n    }\n  ]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/connectedApplications/:connAppId/scopes",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"connectedApplications",
+										":connAppId",
+										"scopes"
+									],
+									"variable": [
+										{
+											"key": "connAppId",
+											"value": "{{createdConnAppId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "IOB - Find connected app by ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var data = pm.response.json();",
+											"",
+											"// Validating response schema",
+											"const connAppSchema = pm.environment.get( \"connAppSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( connAppSchema );",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"//Connected App schema",
+											"const connAppSchema = {",
+											"    type: \"object\",",
+											"    required: [\"client_name\",\"client_id\",\"client_secret\",\"owner_org_id\",\"owner_user_id\",\"grant_types\",\"audience\",\"enabled\",\"public_keys\",\"client_uri\",\"redirect_uris\",\"scopes\",\"policy_uri\",\"tos_uri\",\"cert_expiry\"],",
+											"    properties: {",
+											"        // components/schemas/connectedAppCore",
+											"        client_name: { type: \"string\" },",
+											"        grant_types: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        redirect_uris: { type: \"array\", items: { type: \"string\" } },",
+											"        scopes: { type: \"array\", items: { type: \"string\" } },",
+											"        public_keys: { type: \"array\", items: { type: \"string\" } },",
+											"        client_uri: { type: [ \"string\", \"null\" ] },",
+											"        audience: { type: \"string\" },",
+											"",
+											"        // components/schemas/connectedAppRespExt",
+											"        client_id: { type: \"string\" },",
+											"        client_secret: { type: \"string\" },",
+											"        owner_org_id: { type: \"string\" },",
+											"        owner_user_id: { type: \"string\" },",
+											"        enabled: { type: \"boolean\" },",
+											"        policy_uri: { type: [ \"string\", \"null\" ] },",
+											"        tos_uri: { type: [ \"string\", \"null\" ] },",
+											"        cert_expiry: { type: [ \"string\", \"null\" ] }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"connAppSchema\", connAppSchema );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/connectedApplications/:connAppId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"connectedApplications",
+										":connAppId"
+									],
+									"variable": [
+										{
+											"key": "connAppId",
+											"value": "{{createdConnAppId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "IOB - Find scopes by connected app ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var data = pm.response.json();",
+											"",
+											"// Validating response schema",
+											"const scopesSchema = pm.environment.get( \"scopesSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( scopesSchema );",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"//Scopes schema",
+											"const scopesSchema = {",
+											"    type: \"object\",",
+											"    required: [\"data\",\"total\"],",
+											"    properties: {",
+											"        data: {",
+											"            type: \"array\",",
+											"            items: {",
+											"                type: \"object\",",
+											"                properties: {",
+											"                    scope: { type: \"string\" },",
+											"                    context_params: {",
+											"                        type: \"object\",",
+											"                        properties: {",
+											"                            org: { type: \"string\" },",
+											"                            envId: { type: \"string\" }",
+											"                        }",
+											"                    }",
+											"                }",
+											"            }",
+											"        },",
+											"        total: { type: \"integer\" }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"scopesSchema\", scopesSchema );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/connectedApplications/:connAppId/scopes",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"connectedApplications",
+										":connAppId",
+										"scopes"
+									],
+									"variable": [
+										{
+											"key": "connAppId",
+											"value": "{{createdConnAppId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "IOB - Update connected app",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"randomConnAppName\", \"connected-app-update-\" + randomId );",
+											"",
+											"pm.environment.set( \"randomConnAppSecret\", randomId.replace( \"-\", \"\" ) );",
+											"",
+											"//Connected App schema",
+											"const connAppSchema = {",
+											"    type: \"object\",",
+											"    required: [\"client_name\",\"client_id\",\"client_secret\",\"owner_org_id\",\"owner_user_id\",\"grant_types\",\"audience\",\"enabled\",\"public_keys\",\"client_uri\",\"redirect_uris\",\"scopes\",\"policy_uri\",\"tos_uri\",\"cert_expiry\"],",
+											"    properties: {",
+											"        // components/schemas/connectedAppCore",
+											"        client_name: { type: \"string\" },",
+											"        grant_types: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        redirect_uris: { type: \"array\", items: { type: \"string\" } },",
+											"        scopes: { type: \"array\", items: { type: \"string\" } },",
+											"        public_keys: { type: \"array\", items: { type: \"string\" } },",
+											"        client_uri: { type: [ \"string\", \"null\" ] },",
+											"        audience: { type: \"string\" },",
+											"",
+											"        // components/schemas/connectedAppRespExt",
+											"        client_id: { type: \"string\" },",
+											"        client_secret: { type: \"string\" },",
+											"        owner_org_id: { type: \"string\" },",
+											"        owner_user_id: { type: \"string\" },",
+											"        enabled: { type: \"boolean\" },",
+											"        policy_uri: { type: [ \"string\", \"null\" ] },",
+											"        tos_uri: { type: [ \"string\", \"null\" ] },",
+											"        cert_expiry: { type: [ \"string\", \"null\" ] }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"connAppSchema\", connAppSchema );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Validating response schema",
+											"const connAppSchema = pm.environment.get( \"connAppSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( connAppSchema );",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"client_name\": \"{{randomConnAppName}}\",\n  \"grant_types\": [\n    \"client_credentials\"\n  ],\n  \"redirect_uris\": [],\n  \"scopes\": [],\n  \"public_keys\": [],\n  \"client_uri\": null,\n  \"audience\": \"internal\",\n  \"client_id\": \"{{createdConnAppId}}\",\n  \"enabled\": true,\n  \"client_secret\": \"{{randomConnAppSecret}}\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/connectedApplications/:connAppId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"connectedApplications",
+										":connAppId"
+									],
+									"variable": [
+										{
+											"key": "connAppId",
+											"value": "{{createdConnAppId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "IOB - Update scopes",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"scopes\": [\n    {\n      \"scope\": \"admin:ang_governance_profiles\",\n      \"context_params\": {\n        \"org\": \"{{anypointRootOrganizationId}}\"\n      }\n    },\n    {\n      \"scope\": \"profile\",\n      \"context_params\": {}\n    },\n    {\n      \"scope\": \"edit:api_catalog\",\n      \"context_params\": {\n        \"org\": \"{{anypointRootOrganizationId}}\"\n      }\n    }\n  ]\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/connectedApplications/:connAppId/scopes",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"connectedApplications",
+										":connAppId",
+										"scopes"
+									],
+									"variable": [
+										{
+											"key": "connAppId",
+											"value": "{{createdConnAppId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "IOB - Delete connected app",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"",
+											"console.info( \"Test connected app [\" + pm.environment.get( \"randomConnAppName\" ) + \"] deleted\" );",
+											"",
+											"pm.environment.unset( \"randomConnAppName\" );",
+											"pm.environment.unset( \"createdConnAppId\" );",
+											"pm.environment.unset( \"randomConnAppSecret\" );",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();",
+											"",
+											"console.info( \"Connected Apps (on its own behalf) CRUD tests finished\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/connectedApplications/:connAppId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"connectedApplications",
+										":connAppId"
+									],
+									"variable": [
+										{
+											"key": "connAppId",
+											"value": "{{createdConnAppId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Behalf of user (BOU)",
+					"item": [
+						{
+							"name": "BOU - Create connected app",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"console.info( \"Starting Connected Apps (behalf of user) CRUD tests\" );",
+											"",
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"randomConnAppName\", \"connected-app-\" + randomId );",
+											"",
+											"//Connected App schema",
+											"const connAppSchema = {",
+											"    type: \"object\",",
+											"    required: [\"client_name\",\"client_id\",\"client_secret\",\"owner_org_id\",\"owner_user_id\",\"grant_types\",\"audience\",\"enabled\",\"public_keys\",\"client_uri\",\"redirect_uris\",\"scopes\",\"policy_uri\",\"tos_uri\",\"cert_expiry\"],",
+											"    properties: {",
+											"        // components/schemas/connectedAppCore",
+											"        client_name: { type: \"string\" },",
+											"        grant_types: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        redirect_uris: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        scopes: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        public_keys: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        client_uri: { type: \"string\" },",
+											"        audience: { type: \"string\" },",
+											"",
+											"        // components/schemas/connectedAppRespExt",
+											"        client_id: { type: \"string\" },",
+											"        client_secret: { type: \"string\" },",
+											"        owner_org_id: { type: \"string\" },",
+											"        owner_user_id: { type: \"string\" },",
+											"        enabled: { type: \"boolean\" },",
+											"        policy_uri: { type: [ \"string\", \"null\" ] },",
+											"        tos_uri: { type: [ \"string\", \"null\" ] },",
+											"        cert_expiry: { type: [ \"string\", \"null\" ] }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"connAppSchema\", connAppSchema );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 201\"] = pm.response.to.have.status(201);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Reading and saving created connected app ID",
+											"tests[\"Response has an ID\"] = jsonBody.client_id !== undefined;",
+											"",
+											"pm.environment.set( \"createdConnAppId\", jsonBody.client_id );",
+											"",
+											"//Validating response schema",
+											"// const roleGroupSchema = pm.environment.get( \"roleGroupSchema\" );",
+											"// tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( roleGroupSchema );",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"client_name\": \"{{randomConnAppName}}\",\n  \"grant_types\": [\n    \"authorization_code\",\n    \"refresh_token\",\n    \"password\",\n    \"urn:ietf:params:oauth:grant-type:jwt-bearer\"\n  ],\n  \"redirect_uris\": [\n    \"{{$randomUrl}}\"\n  ],\n  \"scopes\": [\n    \"full\",\n    \"read:full\"\n  ],\n  \"public_keys\": [\n    \"{{$randomUUID}}\"\n  ],\n  \"client_uri\": \"{{$randomUrl}}\",\n  \"audience\": \"internal\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/connectedApplications",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"connectedApplications"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BOU - Find connected app by ID",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var data = pm.response.json();",
+											"",
+											"// Validating response schema",
+											"const connAppSchema = pm.environment.get( \"connAppSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( connAppSchema );",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"//Connected App schema",
+											"const connAppSchema = {",
+											"    type: \"object\",",
+											"    required: [\"client_name\",\"client_id\",\"client_secret\",\"owner_org_id\",\"owner_user_id\",\"grant_types\",\"audience\",\"enabled\",\"public_keys\",\"client_uri\",\"redirect_uris\",\"scopes\",\"policy_uri\",\"tos_uri\",\"cert_expiry\"],",
+											"    properties: {",
+											"        // components/schemas/connectedAppCore",
+											"        client_name: { type: \"string\" },",
+											"        grant_types: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        redirect_uris: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        scopes: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        public_keys: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        client_uri: { type: \"string\" },",
+											"        audience: { type: \"string\" },",
+											"",
+											"        // components/schemas/connectedAppRespExt",
+											"        client_id: { type: \"string\" },",
+											"        client_secret: { type: \"string\" },",
+											"        owner_org_id: { type: \"string\" },",
+											"        owner_user_id: { type: \"string\" },",
+											"        enabled: { type: \"boolean\" },",
+											"        policy_uri: { type: [ \"string\", \"null\" ] },",
+											"        tos_uri: { type: [ \"string\", \"null\" ] },",
+											"        cert_expiry: { type: [ \"string\", \"null\" ] }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"connAppSchema\", connAppSchema );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/connectedApplications/:connAppId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"connectedApplications",
+										":connAppId"
+									],
+									"variable": [
+										{
+											"key": "connAppId",
+											"value": "{{createdConnAppId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BOU - Update connected app",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											"var randomId = pm.variables.replaceIn( \"{{$guid}}\" );",
+											"",
+											"pm.environment.set( \"randomConnAppName\", \"connected-app-update-\" + randomId );",
+											"",
+											"pm.environment.set( \"randomConnAppSecret\", randomId.replace( \"-\", \"\" ) );",
+											"",
+											"//Connected App schema",
+											"const connAppSchema = {",
+											"    type: \"object\",",
+											"    required: [\"client_name\",\"client_id\",\"client_secret\",\"owner_org_id\",\"owner_user_id\",\"grant_types\",\"audience\",\"enabled\",\"public_keys\",\"client_uri\",\"redirect_uris\",\"scopes\",\"policy_uri\",\"tos_uri\",\"cert_expiry\"],",
+											"    properties: {",
+											"        // components/schemas/connectedAppCore",
+											"        client_name: { type: \"string\" },",
+											"        grant_types: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        redirect_uris: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        scopes: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        public_keys: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+											"        client_uri: { type: \"string\" },",
+											"        audience: { type: \"string\" },",
+											"",
+											"        // components/schemas/connectedAppRespExt",
+											"        client_id: { type: \"string\" },",
+											"        client_secret: { type: \"string\" },",
+											"        owner_org_id: { type: \"string\" },",
+											"        owner_user_id: { type: \"string\" },",
+											"        enabled: { type: \"boolean\" },",
+											"        policy_uri: { type: [ \"string\", \"null\" ] },",
+											"        tos_uri: { type: [ \"string\", \"null\" ] },",
+											"        cert_expiry: { type: [ \"string\", \"null\" ] }",
+											"    }",
+											"}",
+											"",
+											"pm.environment.set( \"connAppSchema\", connAppSchema );"
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"var jsonBody = pm.response.json();",
+											"",
+											"// Reading and saving created connected app ID",
+											"tests[\"Response has an ID\"] = jsonBody.client_id !== undefined;",
+											"",
+											"pm.environment.set( \"createdConnAppId\", jsonBody.client_id );",
+											"",
+											"//Validating response schema",
+											"const connAppSchema = pm.environment.get( \"connAppSchema\" );",
+											"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( connAppSchema );",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "PATCH",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"client_name\": \"{{randomConnAppName}}\",\n  \"grant_types\": [\n    \"authorization_code\",\n    \"refresh_token\",\n    \"urn:ietf:params:oauth:grant-type:jwt-bearer\"\n  ],\n  \"redirect_uris\": [\n    \"{{$randomUrl}}\",\n    \"{{$randomUrl}}\"\n  ],\n  \"scopes\": [\n    \"read:full\",\n    \"write:audit_log_settings\",\n    \"create:orgclients\",\n    \"read:orgclients\"\n  ],\n  \"public_keys\": [\n    \"{{$randomUUID}}\"\n  ],\n  \"client_uri\": \"{{$randomUrl}}\",\n  \"audience\": \"everyone\",\n  \"client_id\": \"{{createdConnAppId}}\",\n  \"enabled\": true,\n  \"client_secret\": \"{{randomConnAppSecret}}\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{url}}/accounts/api/connectedApplications/:connAppId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"connectedApplications",
+										":connAppId"
+									],
+									"variable": [
+										{
+											"key": "connAppId",
+											"value": "{{createdConnAppId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "BOU - Delete connected app",
+							"event": [
+								{
+									"listen": "prerequest",
+									"script": {
+										"exec": [
+											""
+										],
+										"type": "text/javascript"
+									}
+								},
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 204\"] = pm.response.to.have.status(204);",
+											"",
+											"console.info( \"Test connected app [\" + pm.environment.get( \"randomConnAppName\" ) + \"] deleted\" );",
+											"",
+											"pm.environment.unset( \"randomConnAppName\" );",
+											"pm.environment.unset( \"createdConnAppId\" );",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();",
+											"",
+											"console.info( \"Connected Apps (behalf of user) CRUD tests finished\" );"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/connectedApplications/:connAppId",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"connectedApplications",
+										":connAppId"
+									],
+									"variable": [
+										{
+											"key": "connAppId",
+											"value": "{{createdConnAppId}}"
+										}
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Helper requests",
+					"item": [
+						{
+							"name": "List scope assignments",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/cs/scopeAssignments",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"cs",
+										"scopeAssignments"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List scopes",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+											"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+											"",
+											"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+											"testHelper.nextTest();"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-XSRF-TOKEN",
+										"value": "{{xsrfToken}}",
+										"type": "text"
+									}
+								],
+								"url": {
+									"raw": "{{url}}/accounts/api/cs/scopes",
+									"host": [
+										"{{url}}"
+									],
+									"path": [
+										"accounts",
+										"api",
+										"cs",
+										"scopes"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "List connected apps",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"tests[\"Status code is 200\"] = pm.response.to.have.status(200);",
+									"tests[\"Response has JSON body\"] = pm.response.to.have.jsonBody();",
+									"",
+									"var data = pm.response.json();",
+									"",
+									"// Validating response schema",
+									"const connAppSchema = pm.environment.get( \"connAppSchema\" );",
+									"tests[\"Response has valid schema\"] = pm.response.to.have.jsonSchema( connAppSchema );",
+									"",
+									"testHelper = eval( pm.collectionVariables.get(\"testHelper\") );",
+									"testHelper.nextTest();"
+								],
+								"type": "text/javascript"
+							}
+						},
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"//Connected App schema",
+									"const connAppSchema = {",
+									"    type: \"object\",",
+									"    required: [\"data\",\"total\"],",
+									"    properties: {",
+									"        total: { type: \"integer\" },",
+									"        data: {",
+									"            type: \"array\",",
+									"            items: {",
+									"                type: \"object\",",
+									"                required: [\"client_name\",\"client_id\",\"client_secret\",\"owner_org_id\",\"owner_user_id\",\"grant_types\",\"audience\",\"enabled\",\"public_keys\",\"client_uri\",\"redirect_uris\",\"scopes\",\"policy_uri\",\"tos_uri\",\"cert_expiry\"],",
+									"                properties: {",
+									"                    // components/schemas/connectedAppCore",
+									"                    client_name: { type: \"string\" },",
+									"                    grant_types: { type: \"array\", minItems: 1, items: { type: \"string\" } },",
+									"                    redirect_uris: { type: \"array\", items: { type: \"string\" } },",
+									"                    scopes: { type: \"array\", items: { type: \"string\" } },",
+									"                    public_keys: { type: \"array\", items: { type: \"string\" } },",
+									"                    client_uri: { type: [ \"string\", \"null\" ] },",
+									"                    audience: { type: \"string\" },",
+									"",
+									"                    // components/schemas/connectedAppRespExt",
+									"                    client_id: { type: \"string\" },",
+									"                    client_secret: { type: \"string\" },",
+									"                    owner_org_id: { type: \"string\" },",
+									"                    owner_user_id: { type: \"string\" },",
+									"                    enabled: { type: \"boolean\" },",
+									"                    policy_uri: { type: [ \"string\", \"null\" ] },",
+									"                    tos_uri: { type: [ \"string\", \"null\" ] },",
+									"                    cert_expiry: { type: [ \"string\", \"null\" ] }",
+									"                }",
+									"            }",
+									"        }",
+									"    }",
+									"}",
+									"",
+									"pm.environment.set( \"connAppSchema\", connAppSchema );"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-XSRF-TOKEN",
+								"value": "{{xsrfToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{url}}/accounts/api/connectedApplications",
+							"host": [
+								"{{url}}"
+							],
+							"path": [
+								"accounts",
+								"api",
+								"connectedApplications"
+							]
+						}
+					},
+					"response": []
+				}
+			]
 		}
 	],
 	"auth": {
@@ -5147,7 +6278,7 @@
 		},
 		{
 			"key": "testHelper",
-			"value": "function loadHelpers() {\n    const nextTestMap = new Map();\n\n    nextTestMap.set( 'User credentials login', 'Refresh XSRF token' );\n    nextTestMap.set( 'Refresh XSRF token', 'Create organization' );\n    nextTestMap.set( 'Create organization', 'Replace organization' );\n    nextTestMap.set( 'Replace organization', 'Find organization by ID' );\n    nextTestMap.set( 'Find organization by ID', 'Delete organization' );\n    nextTestMap.set( 'Delete organization', 'List organization members' );\n    nextTestMap.set( 'List organization members', 'Create environment' );\n    nextTestMap.set( 'Create environment', 'Replace environment' );\n    nextTestMap.set( 'Replace environment', 'Find environment by ID' );\n    nextTestMap.set( 'Find environment by ID', 'List environments' );\n    nextTestMap.set( 'List environments', 'Delete environment' );\n    nextTestMap.set( 'Delete environment', 'Find root team' );\n    nextTestMap.set( 'Find root team', 'Create team' );\n    nextTestMap.set( 'Create team', 'Update team' );\n    nextTestMap.set( 'Update team', 'Find team by ID' );\n    nextTestMap.set( 'Find team by ID', 'Delete team' );\n    nextTestMap.set( 'Delete team', 'Create source parent team' );\n    nextTestMap.set( 'Create source parent team', 'Create movable team' );\n    nextTestMap.set( 'Create movable team', 'Create target parent team' );\n    nextTestMap.set( 'Create target parent team', 'Move team' );\n    nextTestMap.set( 'Move team', 'Delete source parent team' );\n    nextTestMap.set( 'Delete source parent team', 'Delete target parent team' );\n    nextTestMap.set( 'Delete target parent team', 'List platform permissions' );\n    nextTestMap.set( 'List platform permissions', 'TP - Create team' );\n    nextTestMap.set( 'TP - Create team', 'Add team role' );\n    nextTestMap.set( 'Add team role', 'List team roles' );\n    nextTestMap.set( 'List team roles', 'Delete team role' );\n    nextTestMap.set( 'Delete team role', 'TP - Delete team' );\n    nextTestMap.set( 'TP - Delete team', 'Create single user' );\n    nextTestMap.set( 'Create single user', 'Find user by ID' );\n    nextTestMap.set( 'Find user by ID', 'List users' );\n    nextTestMap.set( 'List users', 'Update single user' );\n    nextTestMap.set( 'Update single user', 'Delete single user' );\n    nextTestMap.set( 'Delete single user', 'MU - Create first single user' );\n    nextTestMap.set( 'MU - Create first single user', 'MU - Create second single user' );\n    nextTestMap.set( 'MU - Create second single user', 'Delete multiple users' );\n    nextTestMap.set( 'Delete multiple users', 'Create role group' );\n    nextTestMap.set( 'Create role group', 'Find role group by ID' );\n    nextTestMap.set( 'Find role group by ID', 'List role groups' );\n    nextTestMap.set( 'List role groups', 'Update role group' );\n    nextTestMap.set( 'Update role group', 'Delete role group' );\n    nextTestMap.set( 'Delete role group', 'Logout' );\n    nextTestMap.set( 'Logout', null );\n\n    let helpers = {};\n    helpers.nextTest = function next() {\n        // We have to save the XSRF-TOKEN cookie to set X-XSRF-TOKEN in the next API call\n        const cookiesJar = pm.cookies.jar();\n        cookiesJar.get( pm.request.url, \"XSRF-TOKEN\", function (error, cookie) {\n            if( cookie === null ) {\n                console.error( \"Error reading XSRF-TOKEN cookie for URL [\" + pm.request.url + \"]\" );\n                postman.setNextRequest( null );\n            } else {\n                nextTestName = nextTestMap.get( request.name );\n\n                if( nextTestName === undefined ) {\n                    console.error( \"Next step not defined for current test [\" + request.name + \"]\" );\n                    postman.setNextRequest( null );\n                } else {\n                    pm.environment.set( \"xsrfToken\", cookie );\n                    console.debug( \"XSRF-TOKEN saved for next API call [\" + cookie + \"]\" );\n                    postman.setNextRequest( nextTestName );\n                }\n            }\n        });\n    };\n    \n    return helpers;\n};\nloadHelpers();",
+			"value": "function loadHelpers() {\n    const nextTestMap = new Map();\n    nextTestMap.set( 'User credentials login', 'Refresh XSRF token' );\n    nextTestMap.set( 'Refresh XSRF token', 'Create organization' );\n\n    // Business groups\n    nextTestMap.set( 'Create organization', 'Replace organization' );\n    nextTestMap.set( 'Replace organization', 'Find organization by ID' );\n    nextTestMap.set( 'Find organization by ID', 'Delete organization' );\n    nextTestMap.set( 'Delete organization', 'List organization members' );\n    nextTestMap.set( 'List organization members', 'Create environment' );\n    \n    // Environments\n    nextTestMap.set( 'Create environment', 'Replace environment' );\n    nextTestMap.set( 'Replace environment', 'Find environment by ID' );\n    nextTestMap.set( 'Find environment by ID', 'List environments' );\n    nextTestMap.set( 'List environments', 'Delete environment' );\n    nextTestMap.set( 'Delete environment', 'Find root team' );\n    \n    // Teams\n    nextTestMap.set( 'Find root team', 'Create team' );\n    nextTestMap.set( 'Create team', 'Update team' );\n    nextTestMap.set( 'Update team', 'Find team by ID' );\n    nextTestMap.set( 'Find team by ID', 'Delete team' );\n    nextTestMap.set( 'Delete team', 'Create source parent team' );\n    nextTestMap.set( 'Create source parent team', 'Create movable team' );\n    nextTestMap.set( 'Create movable team', 'Create target parent team' );\n    nextTestMap.set( 'Create target parent team', 'Move team' );\n    nextTestMap.set( 'Move team', 'Delete source parent team' );\n    nextTestMap.set( 'Delete source parent team', 'Delete target parent team' );\n    nextTestMap.set( 'Delete target parent team', 'List platform permissions' );\n    nextTestMap.set( 'List platform permissions', 'TP - Create team' );\n    nextTestMap.set( 'TP - Create team', 'Add team role' );\n    nextTestMap.set( 'Add team role', 'List team roles' );\n    nextTestMap.set( 'List team roles', 'Delete team role' );\n    nextTestMap.set( 'Delete team role', 'TP - Delete team' );\n    nextTestMap.set( 'TP - Delete team', 'Create single user' );\n    \n    // Users\n    nextTestMap.set( 'Create single user', 'Find user by ID' );\n    nextTestMap.set( 'Find user by ID', 'List users' );\n    nextTestMap.set( 'List users', 'Update single user' );\n    nextTestMap.set( 'Update single user', 'Delete single user' );\n    nextTestMap.set( 'Delete single user', 'MU - Create first single user' );\n    nextTestMap.set( 'MU - Create first single user', 'MU - Create second single user' );\n    nextTestMap.set( 'MU - Create second single user', 'Delete multiple users' );\n    nextTestMap.set( 'Delete multiple users', 'Create role group' );\n    \n    // Role groups\n    nextTestMap.set( 'Create role group', 'Find role group by ID' );\n    nextTestMap.set( 'Find role group by ID', 'List role groups' );\n    nextTestMap.set( 'List role groups', 'Update role group' );\n    nextTestMap.set( 'Update role group', 'Delete role group' );\n    nextTestMap.set( 'Delete role group', 'List connected apps' );\n\n\t// Connected Apps\n\tnextTestMap.set( 'List connected apps', 'IOB - Create connected app' );\n    nextTestMap.set( 'IOB - Create connected app', 'IOB - Add scopes' );\n    nextTestMap.set( 'IOB - Add scopes', 'IOB - Find connected app by ID' );\n    nextTestMap.set( 'IOB - Find connected app by ID', 'IOB - Find scopes by connected app ID' );\n    nextTestMap.set( 'IOB - Find scopes by connected app ID', 'IOB - Update connected app' );\n    nextTestMap.set( 'IOB - Update connected app', 'IOB - Update scopes' );\n    nextTestMap.set( 'IOB - Update scopes', 'IOB - Delete connected app' );\n    nextTestMap.set( 'IOB - Delete connected app', 'BOU - Create connected app' );\n    nextTestMap.set( 'BOU - Create connected app', 'BOU - Find connected app by ID' );\n    nextTestMap.set( 'BOU - Find connected app by ID', 'BOU - Update connected app' );\n    nextTestMap.set( 'BOU - Update connected app', 'BOU - Delete connected app' );\n    nextTestMap.set( 'BOU - Delete connected app', 'Logout' );\n\n    // Logout\n    nextTestMap.set( 'Logout', null );\n\n    let helpers = {};\n    helpers.nextTest = function next() {\n        // We have to save the XSRF-TOKEN cookie to set X-XSRF-TOKEN in the next API call\n        const cookiesJar = pm.cookies.jar();\n        cookiesJar.get( pm.request.url, \"XSRF-TOKEN\", function (error, cookie) {\n            if( cookie === null ) {\n                console.error( \"Error reading XSRF-TOKEN cookie for URL [\" + pm.request.url + \"]\" );\n                postman.setNextRequest( null );\n            } else {\n                nextTestName = nextTestMap.get( request.name );\n                if( nextTestName === undefined ) {\n                    console.error( \"Next step not defined for current test [\" + request.name + \"]\" );\n                    postman.setNextRequest( null );\n                } else {\n                    pm.environment.set( \"xsrfToken\", cookie );\n                    console.debug( \"XSRF-TOKEN saved for next API call [\" + cookie + \"]\" );\n                    postman.setNextRequest( nextTestName );\n                }\n            }\n        });\n    };\n    \n    return helpers;\n};\nloadHelpers();",
 			"type": "string"
 		}
 	]
